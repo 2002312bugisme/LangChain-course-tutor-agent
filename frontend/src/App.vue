@@ -58,6 +58,7 @@ async function switchThread(tid) {
           role: m.role === 'human' ? 'user' : 'assistant',
           content: m.content,
           thinking: m.thinking || '',
+          plan: m.plan || null,      // 历史学习计划卡片
           tools: [],
           collapsed: !m.thinking,  // 有思考的历史消息默认折叠
         }
@@ -130,14 +131,14 @@ async function exportChat() {
 }
 
 // 生成学习计划（结构化输出 → 卡片渲染）
-// 规划主题 = 用户输入框内容（实时），不是硬编码
+// 规划主题 = 用户输入框内容（实时），不是硬编码；写入会话历史（侧边栏可见）
 async function generatePlan(q) {
   const topic = (q ?? '').trim() || input.value.trim()
   if (!topic || loading.value) return
   input.value = ''
   loading.value = true
   messages.value.push({ role: 'user', content: `📊 请帮我规划学习路线：${topic}` })
-  messages.value.push({ role: 'plan', plan: null, error: '' })
+  messages.value.push({ role: 'assistant', plan: null, error: '', _planning: true })
   const idx = messages.value.length - 1
   scrollBottom()
   // 超时保护：45s 无响应则报错（避免 fetch 永久挂起）
@@ -147,22 +148,25 @@ async function generatePlan(q) {
     const resp = await fetch('/plan', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: topic }),
+      body: JSON.stringify({ message: topic, thread_id: activeThread.value }),
       signal: ctrl.signal,
     })
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
     const data = await resp.json()
-    if (!data || !Array.isArray(data.topics)) throw new Error('响应格式异常')
+    if (!data.plan || !Array.isArray(data.plan.topics)) throw new Error('响应格式异常')
     // ★ Vue 3 响应式：从代理数组取引用再修改
     const msg = messages.value[idx]
-    msg.plan = data
+    msg.plan = data.plan
+    msg._planning = false
   } catch (e) {
     const msg = messages.value[idx]
     msg.error = e.name === 'AbortError' ? '生成超时（45s），请重试' : e.message
+    msg._planning = false
   } finally {
     clearTimeout(timer)
     loading.value = false
     scrollBottom()
+    await loadThreads()  // 刷新侧边栏：计划会话出现
   }
 }
 
@@ -296,9 +300,9 @@ onMounted(async () => {
           <template v-else>
             <div class="ai-avatar">🤖</div>
             <div class="ai-body">
-              <!-- 学习计划卡片（结构化输出） -->
-              <div v-if="m.role === 'plan'" class="plan-card">
-                <div v-if="!m.plan && !m.error" class="typing">
+              <!-- 学习计划卡片（结构化输出，实时 + 历史回看共用） -->
+              <div v-if="m._planning || m.plan || m.error" class="plan-card">
+                <div v-if="m._planning" class="typing">
                   正在规划学习路线<span class="cursor">▍</span>
                 </div>
                 <div v-else-if="m.error" class="plan-error">计划生成失败：{{ m.error }}</div>

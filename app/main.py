@@ -17,8 +17,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
+from uuid import uuid4
 
 from app.agent import ensure_agent
 from app.config import settings
@@ -191,6 +193,9 @@ async def thread_messages(tid: str):
         item = {"role": m.type, "content": str(m.content)}
         if m.type == "ai":
             item["thinking"] = m.additional_kwargs.get("reasoning_content", "")
+            plan = m.additional_kwargs.get("plan")
+            if plan:
+                item["plan"] = plan  # 学习计划卡片数据（阶段 7 会话集成）
         out.append(item)
     return {"thread_id": tid, "messages": out}
 
@@ -206,7 +211,11 @@ async def create_plan(req: ChatRequest):
     - thinking 模式下不支持 structured output（tool_choice 被拒）
     - 必须 extra_body={"thinking": {"type": "disabled"}} 关闭思考
     - method="function_calling" 可用；json_schema 不可用（unavailable）
+
+    会话集成（用户反馈修复）：计划也写入 checkpointer 会话历史，
+    侧边栏出现会话、可切换回看（plan 存 AIMessage.additional_kwargs）。
     """
+    # 1. 生成结构化计划
     model = ChatOpenAI(
         model=settings.deepseek_model,
         api_key=settings.deepseek_api_key,
@@ -219,7 +228,32 @@ async def create_plan(req: ChatRequest):
     )
     structured_model = model.with_structured_output(LearningPlan, method="function_calling")
     result = await structured_model.ainvoke(f"请为用户规划编程学习路线：{req.message}")
-    return result.model_dump() if hasattr(result, "model_dump") else result
+    plan = result.model_dump() if hasattr(result, "model_dump") else result
+
+    # 2. 写入会话历史（checkpointer），无 thread_id 则新建
+    tid = req.thread_id or uuid4().hex
+    summary = "\n".join(
+        f"{t['order']}. {t['name']}（{t['minutes']}分钟）" for t in plan.get("topics", [])
+    )
+    await _memory["agent"].aupdate_state(
+        {"configurable": {"thread_id": tid}},
+        {
+            "messages": [
+                HumanMessage(content=f"📊 请帮我规划学习路线：{req.message}"),
+                AIMessage(
+                    content=f"已生成学习计划：{plan.get('goal', '')}\n{summary}",
+                    additional_kwargs={"plan": plan},
+                ),
+            ]
+        },
+    )
+
+    # 3. 异步生成会话标题（与聊天流程一致）
+    task = asyncio.create_task(_generate_thread_title(tid))
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+
+    return {"plan": plan, "thread_id": tid}
 
 
 @app.get("/threads/{tid}/export")
