@@ -17,11 +17,14 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
 from app.agent import ensure_agent
+from app.config import settings
 from app.memory import memory_ctx
 from app.model import get_model
+from app.schemas import LearningPlan
 
 # 记忆连接生命周期：app 运行期间保持（阶段 6）
 _memory = {}
@@ -190,6 +193,71 @@ async def thread_messages(tid: str):
             item["thinking"] = m.additional_kwargs.get("reasoning_content", "")
         out.append(item)
     return {"thread_id": tid, "messages": out}
+
+
+@app.post("/plan")
+async def create_plan(req: ChatRequest):
+    """学习计划生成（阶段 7：结构化输出演示）。
+
+    用 with_structured_output(LearningPlan)：模型直接返回符合 schema 的
+    Pydantic 对象（JSON），前端无需解析文本即可渲染卡片。
+
+    ⚠️ deepseek-v4-flash 推理模型实验结论（2026-08 实测）：
+    - thinking 模式下不支持 structured output（tool_choice 被拒）
+    - 必须 extra_body={"thinking": {"type": "disabled"}} 关闭思考
+    - method="function_calling" 可用；json_schema 不可用（unavailable）
+    """
+    model = ChatOpenAI(
+        model=settings.deepseek_model,
+        api_key=settings.deepseek_api_key,
+        base_url=settings.deepseek_base_url,
+        temperature=settings.temperature,
+        max_tokens=settings.max_tokens,
+        timeout=settings.timeout,
+        max_retries=settings.max_retries,
+        extra_body={"thinking": {"type": "disabled"}},
+    )
+    structured_model = model.with_structured_output(LearningPlan, method="function_calling")
+    result = await structured_model.ainvoke(f"请为用户规划编程学习路线：{req.message}")
+    return result.model_dump() if hasattr(result, "model_dump") else result
+
+
+@app.get("/threads/{tid}/export")
+async def export_thread(tid: str):
+    """导出会话为 Markdown（阶段 7 需求）。
+
+    格式：
+    # 会话标题
+    > 导出时间 / 会话 ID
+    ## 👤 用户 / ## 🤖 助手（思考过程用引用块）
+    """
+    snap = await _memory["agent"].aget_state({"configurable": {"thread_id": tid}})
+    msgs = (snap.values.get("messages", []) if snap else []) or []
+
+    # 标题（Store 中的 LLM 总结或手动重命名）
+    item = await _memory["store"].aget(("threads", tid), "title")
+    title = (item.value if item else None) or "会话"
+
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+    lines = [f"# {title}", "", f"> 导出时间：{now}", f"> 会话 ID：`{tid}`", ""]
+    for m in msgs:
+        if m.type == "human" and m.content:
+            lines += ["---", "", f"## 👤 用户", "", str(m.content), ""]
+        elif m.type == "ai" and m.content:
+            lines += ["---", "", "## 🤖 助手", ""]
+            reasoning = m.additional_kwargs.get("reasoning_content")
+            if reasoning:
+                lines += [
+                    "> **思考过程**",
+                    "",
+                    *[f"> {line}" for line in str(reasoning).splitlines()],
+                    "",
+                ]
+            lines += [str(m.content), ""]
+
+    return {"title": title, "markdown": "\n".join(lines)}
 
 
 @app.post("/chat")

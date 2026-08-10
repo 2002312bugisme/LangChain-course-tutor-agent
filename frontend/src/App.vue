@@ -110,6 +110,50 @@ function useExample(q) {
   input.value = q
 }
 
+// 导出当前会话为 Markdown（阶段 7 需求）
+async function exportChat() {
+  if (!activeThread.value || loading.value) return
+  try {
+    const resp = await fetch(`/threads/${encodeURIComponent(activeThread.value)}/export`)
+    if (!resp.ok) throw new Error('导出失败')
+    const data = await resp.json()
+    const blob = new Blob([data.markdown], { type: 'text/markdown;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${data.title || '会话'}.md`
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    alert('导出失败：' + e.message)
+  }
+}
+
+// 生成学习计划（结构化输出 → 卡片渲染）
+async function generatePlan(q) {
+  if (loading.value) return
+  input.value = ''
+  loading.value = true
+  messages.value.push({ role: 'user', content: q })
+  messages.value.push({ role: 'plan', plan: null, error: '' })
+  const idx = messages.value.length - 1
+  scrollBottom()
+  try {
+    const resp = await fetch('/plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: q }),
+    })
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+    messages.value[idx].plan = await resp.json()
+  } catch (e) {
+    messages.value[idx].error = e.message
+  } finally {
+    loading.value = false
+    scrollBottom()
+  }
+}
+
 async function send() {
   const text = input.value.trim()
   if (!text || loading.value) return
@@ -216,6 +260,7 @@ onMounted(async () => {
       <header>
         <h1>🎓 课栈 · 编程学习助手</h1>
         <span class="hint">会话记忆 · 思考过程实时展示</span>
+        <button class="export-btn" :disabled="loading || !activeThread" @click="exportChat">📥 导出对话</button>
       </header>
 
       <main ref="chatBox" class="chat">
@@ -225,8 +270,11 @@ onMounted(async () => {
           <div class="empty-title">你好！我是课栈，编程学习助手</div>
           <div class="empty-sub">可以问我课程推荐、学习路线规划、知识库问答</div>
           <div class="examples">
-            <button v-for="q in ['推荐一门 Python 入门课', '有没有 Vue 进阶课程？', '规划一下 Vue + Python 的学习路线']"
+            <button v-for="q in ['推荐一门 Python 入门课', '有没有 Vue 进阶课程？']"
               :key="q" class="example-btn" @click="useExample(q)">{{ q }}</button>
+            <button class="example-btn plan-btn" @click="generatePlan('零基础学 Python，目标数据分析') ">
+              📊 生成学习计划（结构化卡片）
+            </button>
           </div>
         </div>
 
@@ -236,6 +284,27 @@ onMounted(async () => {
           <template v-else>
             <div class="ai-avatar">🤖</div>
             <div class="ai-body">
+              <!-- 学习计划卡片（结构化输出） -->
+              <div v-if="m.role === 'plan'" class="plan-card">
+                <div v-if="!m.plan && !m.error" class="typing">
+                  正在规划学习路线<span class="cursor">▍</span>
+                </div>
+                <div v-else-if="m.error" class="plan-error">计划生成失败：{{ m.error }}</div>
+                <template v-else>
+                  <div class="plan-header">
+                    <span class="plan-goal">🎯 {{ m.plan.goal }}</span>
+                    <span class="plan-badge">{{ m.plan.level }}</span>
+                  </div>
+                  <div class="plan-meta">总时长约 {{ m.plan.total_hours }} 小时 · {{ m.plan.topics.length }} 个主题</div>
+                  <ol class="plan-topics">
+                    <li v-for="t in m.plan.topics" :key="t.order" class="plan-topic">
+                      <span class="plan-order">{{ t.order }}</span>
+                      <span class="plan-name">{{ t.name }}</span>
+                      <span class="plan-minutes">{{ Math.round(t.minutes / 60 * 10) / 10 }}h</span>
+                    </li>
+                  </ol>
+                </template>
+              </div>
               <!-- 思考区：可折叠 -->
               <div v-if="m.thinking" class="thinking" @click="toggleThinking(m)">
                 <span class="thinking-label">🤔 思考过程</span>
@@ -347,6 +416,26 @@ header h1 { font-size: 18px; color: #111827; }
 /* 打字状态 */
 .typing { color: #9ca3af; font-size: 14px; }
 .cursor { display: inline-block; animation: blink 1s step-end infinite; color: #6366f1; }
+
+/* 导出按钮 */
+.export-btn { margin-left: auto; padding: 7px 14px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; color: #4f46e5; cursor: pointer; transition: all .2s; }
+.export-btn:hover:not(:disabled) { border-color: #6366f1; background: #f5f3ff; }
+.export-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* 学习计划卡片 */
+.plan-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 18px 20px; box-shadow: 0 2px 10px rgba(0,0,0,.05); margin-bottom: 10px; }
+.plan-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.plan-goal { font-size: 16px; font-weight: 600; color: #1f2937; }
+.plan-badge { padding: 2px 10px; border-radius: 999px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; font-size: 12px; flex-shrink: 0; }
+.plan-meta { font-size: 12px; color: #9ca3af; margin-bottom: 12px; }
+.plan-topics { list-style: none; padding: 0; margin: 0; }
+.plan-topic { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px dashed #f0f0f3; }
+.plan-topic:last-child { border-bottom: none; }
+.plan-order { width: 22px; height: 22px; border-radius: 50%; background: #eef2ff; color: #4f46e5; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.plan-name { flex: 1; font-size: 14px; color: #334155; }
+.plan-minutes { font-size: 12px; color: #94a3b8; flex-shrink: 0; }
+.plan-error { color: #dc2626; font-size: 14px; }
+.example-btn.plan-btn { border-style: dashed; border-color: #c7d2fe; background: #f5f3ff; }
 
 /* 底部输入 */
 footer { display: flex; gap: 10px; padding: 16px 24px 20px; background: linear-gradient(transparent, #f7f8fa 30%); }
