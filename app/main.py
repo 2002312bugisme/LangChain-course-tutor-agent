@@ -325,6 +325,11 @@ async def chat_stream(req: ChatRequest):
         ):
             if mode == "messages":
                 chunk, metadata = data
+                # ⚠️ 只发模型节点产生的 chunk：tools 节点流出的 ToolMessage
+                # 也会进 messages 模式（metadata.langgraph_node == "tools"），
+                # 不过滤会把工具执行结果混入 AI 回复文本
+                if metadata.get("langgraph_node") != "model":
+                    continue
                 reasoning = chunk.additional_kwargs.get("reasoning_content")
                 if reasoning:
                     yield _sse("reasoning", {"content": reasoning})

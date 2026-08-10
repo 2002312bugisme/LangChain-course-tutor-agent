@@ -18,12 +18,19 @@ const THREAD_KEY = 'kezhan_thread_id'
 marked.setOptions({ breaks: true, gfm: true })
 const renderMd = (text) => marked.parse(text || '')
 
-// 消息附带 render 后的 html（v-html 用），避免每次渲染都 parse
+// 消息附带 render 后的 html（v-html 用）
+// ⚠️ 不能加 !m._html 短路：流式 token 追加后必须重新 parse，否则打字机卡死
 function attachRender(m) {
-  if (m.role === 'assistant' && m.content && !m._html) {
+  if (m.role === 'assistant' && m.content) {
     m._html = renderMd(m.content)
   }
   return m
+}
+
+// 多轮工具循环：新一轮思考/回复开一条新 AI 消息（与历史接口的多条 AIMessage 一致）
+function newAssistantMsg() {
+  messages.value.push({ role: 'assistant', content: '', thinking: '', tools: [], collapsed: false })
+  return messages.value[messages.value.length - 1]
 }
 
 function scrollBottom() {
@@ -192,7 +199,7 @@ async function send() {
   messages.value.push({ role: 'user', content: text })
   messages.value.push({ role: 'assistant', content: '', thinking: '', tools: [], collapsed: false })
   // ★ Vue 3 响应式陷阱：从代理数组取引用
-  const msg = messages.value[messages.value.length - 1]
+  let msg = messages.value[messages.value.length - 1]
   scrollBottom()
 
   try {
@@ -217,12 +224,20 @@ async function send() {
         const line = chunk.split('\n').find((l) => l.startsWith('data:'))
         if (!line) continue
         const evt = JSON.parse(line.slice(5))
+        // 多轮工具循环：工具调用后的新一轮内容 → 新开一条 AI 消息
+        if ((evt.type === 'reasoning' || evt.type === 'token') && msg._toolCalled) {
+          msg = newAssistantMsg()
+          scrollBottom()
+        }
         if (evt.type === 'reasoning') msg.thinking += evt.content
         else if (evt.type === 'token') {
           msg.content += evt.content
           attachRender(msg)
         }
-        else if (evt.type === 'tool') msg.tools.push(evt)
+        else if (evt.type === 'tool') {
+          msg.tools.push(evt)
+          msg._toolCalled = true  // 标记：下一轮内容属于新消息
+        }
         else if (evt.type === 'error') msg.content += `\n[错误] ${evt.message}`
         scrollBottom()
       }
