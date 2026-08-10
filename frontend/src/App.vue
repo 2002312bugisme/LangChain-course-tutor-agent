@@ -130,11 +130,13 @@ async function exportChat() {
 }
 
 // 生成学习计划（结构化输出 → 卡片渲染）
+// 规划主题 = 用户输入框内容（实时），不是硬编码
 async function generatePlan(q) {
-  if (loading.value) return
+  const topic = (q ?? '').trim() || input.value.trim()
+  if (!topic || loading.value) return
   input.value = ''
   loading.value = true
-  messages.value.push({ role: 'user', content: q })
+  messages.value.push({ role: 'user', content: `📊 请帮我规划学习路线：${topic}` })
   messages.value.push({ role: 'plan', plan: null, error: '' })
   const idx = messages.value.length - 1
   scrollBottom()
@@ -145,7 +147,7 @@ async function generatePlan(q) {
     const resp = await fetch('/plan', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: q }),
+      body: JSON.stringify({ message: topic }),
       signal: ctrl.signal,
     })
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
@@ -282,8 +284,8 @@ onMounted(async () => {
           <div class="examples">
             <button v-for="q in ['推荐一门 Python 入门课', '有没有 Vue 进阶课程？']"
               :key="q" class="example-btn" @click="useExample(q)">{{ q }}</button>
-            <button class="example-btn plan-btn" @click="generatePlan('零基础学 Python，目标数据分析') ">
-              📊 生成学习计划（结构化卡片）
+            <button class="example-btn plan-btn" @click="useExample('零基础学 Python，目标数据分析')">
+              📊 试试：零基础学 Python，目标数据分析 → 点「📊 计划」
             </button>
           </div>
         </div>
@@ -338,10 +340,11 @@ onMounted(async () => {
       <footer>
         <input
           v-model="input"
-          placeholder="输入你的问题…（Enter 发送）"
+          placeholder="输入你的问题…（Enter 发送；输入学习目标后点 📊 生成计划）"
           :disabled="loading"
           @keyup.enter="send"
         />
+        <button class="plan-btn" :disabled="loading || !input.trim()" @click="generatePlan()">📊 计划</button>
         <button class="send-btn" :disabled="loading || !input.trim()" @click="send">
           {{ loading ? '生成中' : '发送' }}
         </button>
@@ -452,6 +455,9 @@ footer { display: flex; gap: 10px; padding: 16px 24px 20px; background: linear-g
 footer input { flex: 1; padding: 13px 18px; border: 1px solid #e5e7eb; border-radius: 12px; font-size: 15px; outline: none; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.05); transition: border-color .2s, box-shadow .2s; }
 footer input:focus { border-color: #6366f1; box-shadow: 0 2px 12px rgba(99,102,241,.15); }
 .send-btn { padding: 13px 28px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; border: none; border-radius: 12px; font-size: 15px; cursor: pointer; transition: opacity .2s, transform .1s; }
+.plan-btn { padding: 13px 18px; background: #f5f3ff; border: 1px solid #c7d2fe; color: #6d28d9; border-radius: 12px; font-size: 14px; cursor: pointer; transition: all .2s; white-space: nowrap; }
+.plan-btn:hover:not(:disabled) { background: #ede9fe; border-color: #8b5cf6; }
+.plan-btn:disabled { opacity: .5; cursor: not-allowed; }
 .send-btn:hover:not(:disabled) { opacity: .9; }
 .send-btn:active:not(:disabled) { transform: scale(.97); }
 .send-btn:disabled { background: #c7c9d1; cursor: not-allowed; }
