@@ -27,3 +27,7 @@ data/rag_index.json
 .idea/
 .vscode/
 .DS_Store
+
+# SQLite WAL/SHM（运行时生成）
+*.db-wal
+*.db-shm

@@ -1,3 +1,5 @@
+# LangChain 学习笔记（菜鸟教程 + 实战整理）
+
 在当前目录下也就是D:\Code\LangChain_1.2目录下，使用langchain搭建属于我们自己的agent，下面是一些需求，也就是需要使用要的技术：
 我们选用deepseek作为我们的大脑，apikey如下sk-REPLACE_WITH_YOUR_KEY，关于模型调用使用init_chat_model() 
 模型选用deepseek-v4-flash，其中model参数如果不指定提供商前缀，LangChain 会尝试从模型名推断，
@@ -72,7 +74,7 @@ with_structured_output() 支持复杂的嵌套结构：**lass** Ingredient(BaseM
 JSON Schema 模式
 
 除了 Pydantic 模型，也可以直接传入 JSON Schema：
-\# 直接传入 JSON Schema
+    # 直接传入 JSON Schema
 json_schema = {
   "title": "SentimentAnalysis",
   "description": "情感分析结果",
@@ -112,51 +114,51 @@ ConfigurableModel 上的 bind_tools 和 with_structured_output
 | SystemMessage | 系统    | 系统指令，定义 AI 的角色和行为规则 | "你是一个专业的天气助手" |
 | ToolMessage   | 工具    | 工具执行后的返回结果               | "晴，25°C，湿度 60%"     |
 
-## HumanMessage——用户消息
+### HumanMessage——用户消息
 
 HumanMessage 代表用户发送给 AI 的消息。它是最常见的消息类型，也是对话的起点。HumanMessage 的快捷创建方式
 
 在构建消息列表时，可以使用元组或字典作为快捷方式：
 
-\# 方式 1：标准构造
+    # 方式 1：标准构造
 msg1 = HumanMessage(content="你好")
 
-\# 方式 2：元组快捷方式 (role, content)
+    # 方式 2：元组快捷方式 (role, content)
 msg2 = ("user", "你好")
 msg3 = ("human", "你好")
 
-\# 方式 3：字典快捷方式
+    # 方式 3：字典快捷方式
 msg4 = {"role": "user", "content": "你好"}
 
-\# 四种方式等价，都会在 Agent 内部被转换为 HumanMessage
+    # 四种方式等价，都会在 Agent 内部被转换为 HumanMessage
 **print**(type(msg1)) # <class 'langchain_core.messages.human.HumanMessage'>
 
-## AIMessage——AI 回复
+### AIMessage——AI 回复
 
 AIMessage 代表模型的回复。与普通文本不同，AIMessage 可能包含 **tool_calls**（工具调用请求）。
 
-## SystemMessage——系统指令
+### SystemMessage——系统指令
 
 SystemMessage 用于设定 AI 的行为、角色和约束。它放在消息列表的最前面，指导模型如何回复。
 关于systemmessage 这个内容，他是不是领先于其他的所有消息或者说提示词，最先提交给llm的？
 
-## ToolMessage——工具返回结果
+### ToolMessage——工具返回结果
 
 ToolMessage 包含工具执行后的返回结果。它必须与对应的 tool_call 关联。
 
 *ToolMessage 的 tool_call_id 必须与 AIMessage 中 tool_call 的 id 精确匹配。如果不匹配，模型可能会忽略这个工具结果，或者产生混乱的行为。*
 
-## AIMessageChunk——流式输出的消息片段
+### AIMessageChunk——流式输出的消息片段
 
 当你使用 stream() 流式输出时，每个到达的片段是 AIMessageChunk，而非完整的 AIMessage：
 
-\# stream() 返回的是 AIMessageChunk 迭代器
+    # stream() 返回的是 AIMessageChunk 迭代器
 **for** chunk **in** model.stream("用一句话介绍菜鸟教程 RUNOOB"):
-  \# 每个 chunk 是一小段文本
+  # 每个 chunk 是一小段文本
   **print**(chunk.content, end="", flush=True)
 **print**() # 换行
 
-## ContentBlock——结构化消息内容
+### ContentBlock——结构化消息内容
 
 到目前为止，我们使用的消息内容都是纯字符串。但实际上每条消息的内容可以是多个 **ContentBlock**（内容块）组成的列表。
 
@@ -170,11 +172,11 @@ ToolMessage 包含工具执行后的返回结果。它必须与对应的 tool_ca
 
 *当你只需要发送纯文本时，直接传字符串即可，LangChain 会自动处理。只有当你需要在单条消息中混合文本和图片时，才需要手动构建 ContentBlock 列表。*
 
-## ToolCall——工具调用消息
+### ToolCall——工具调用消息
 
 AIMessage 中的 tool_calls 字段是一个 ToolCall 列表，每个 ToolCall 代表模型请求调用一个工具：
 
-\# 手动构建一个 ToolCall
+    # 手动构建一个 ToolCall
 tool_call = ToolCall(
   name="get_weather",     # 工具名称
   args={"city": "杭州"},   # 调用参数
@@ -182,7 +184,7 @@ tool_call = ToolCall(
   type="tool_call",     # 固定值
 )
 
-## trim_messages()——裁剪消息历史
+### trim_messages()——裁剪消息历史
 
 当对话越来越长时，消息列表可能超出模型的上下文窗口。**trim_messages()** 函数帮助你智能地裁剪消息历史。
 
@@ -190,8 +192,8 @@ tool_call = ToolCall(
 | ---------------- | ----------------------------- | ------------------------ |
 | strategy="first" | 保留 system 消息 + 最早的对话 | 确保关键上下文不被裁剪   |
 
-\# 裁剪消息以适应模型的上下文窗口（最多 1000 tokens）
-\# strategy="last" 保留最后的系统消息和最近的对话
+    # 裁剪消息以适应模型的上下文窗口（最多 1000 tokens）
+    # strategy="last" 保留最后的系统消息和最近的对话
 trimmed = trim_messages(
   messages,
   max_tokens=1000,      # 最多保留 1000 tokens
@@ -203,45 +205,45 @@ trimmed = trim_messages(
 
 *start_on="human" 确保裁剪后的消息列表以用户消息开头（而不是 AI 消息），避免让模型收到一条孤立的 AI 回复开头。*
 
-## RemoveMessage——删除特定消息
+### RemoveMessage——删除特定消息
 
 在某些高级场景中，你可能需要从消息历史中删除特定消息（如敏感内容清洗、重新生成回复等）：
 
-\# 使用 RemoveMessage 删除特定消息（通过 ID）
-\# RemoveMessage 配合 add_messages reducer 使用
-\# 在更新 Agent 状态时，RemoveMessage 会从列表中移除对应 ID 的消息
+    # 使用 RemoveMessage 删除特定消息（通过 ID）
+    # RemoveMessage 配合 add_messages reducer 使用
+    # 在更新 Agent 状态时，RemoveMessage 会从列表中移除对应 ID 的消息
 removal = RemoveMessage(id="msg_3")
 
 *RemoveMessage 通常配合 AgentState 的 add_messages reducer 使用。在 middleware 或 after_model 钩子中返回 RemoveMessage 可以动态清理消息历史。*
 
-## 消息属性的通用方法
+### 消息属性的通用方法
 
 所有消息类型都继承自 BaseMessage，共享一些通用方法：
 
 msg = HumanMessage(content="你好，菜鸟教程")
 
-\# 基本属性
+    # 基本属性
 **print**(f"content: {msg.content}")    # 消息内容
 **print**(f"type: {msg.type}")       # 消息类型（human/ai/system/tool）
 **print**(f"id: {msg.id}")         # 自动生成的唯一 ID
 
-\# text 属性：如果是文本内容，返回文本；否则返回 ""
+    # text 属性：如果是文本内容，返回文本；否则返回 ""
 **print**(f"text: {msg.text}")
 
-\# pretty_repr()：格式化打印，适合调试
+    # pretty_repr()：格式化打印，适合调试
 **print**(f"美化输出:**\n**{msg.pretty_repr()}")
 
-# LangChain @tool 装饰器——定义工具
+## LangChain @tool 装饰器——定义工具
 
 工具（Tool）是 Agent 与外部世界交互的桥梁。
 
 通过 **@tool** 装饰器，你可以将任何 Python 函数快速转换为 Agent 可调用的工具。
 
-## @tool 基本语法
+### @tool 基本语法
 
 @tool 是 LangChain 提供的装饰器，用法极其简单：在函数上加上 @tool 装饰器，函数就变成了一个工具。
 
-\# 最简单的工具：一个普通函数 + @tool 装饰器
+    # 最简单的工具：一个普通函数 + @tool 装饰器
 @tool
 **def** hello_tool(name: str) -> str:
   """向指定的人打招呼。
@@ -251,11 +253,11 @@ msg = HumanMessage(content="你好，菜鸟教程")
   """
   **return** f"你好，{name}！欢迎来到菜鸟教程 RUNOOB。"
 
-\# 工具也是普通的 Python 函数，可以直接调用
+    # 工具也是普通的 Python 函数，可以直接调用
 result = hello_tool.invoke({"name": "小明"})
 **print**(result)
 
-\# 工具包含自动生成的描述信息
+    # 工具包含自动生成的描述信息
 **print**(f"**\n**工具名称: {hello_tool.name}")
 **print**(f"工具描述: {hello_tool.description}")
 
@@ -271,7 +273,7 @@ result = hello_tool.invoke({"name": "小明"})
   free_only: bool = True,
 ) -> str:
 
-## 注册工具到 Agent
+### 注册工具到 Agent
 
 将定义好的工具传给 create_agent() 的 tools 参数，Agent 就能使用它了
 是不是这里也可以使用 bind_tools() 进行工具的注册
@@ -281,12 +283,12 @@ result = hello_tool.invoke({"name": "小明"})
 
 *默认值让 Agent 在调用工具时不用每次都指定所有参数。但注意：如果某个参数没有默认值且 Agent 没有提供，调用会失败。关键参数不要设默认值。*
 
-## 工具的 args_schema——自定义参数校验
+### 工具的 args_schema——自定义参数校验
 
 对于复杂参数校验需求，可以使用 Pydantic 模型作为 args_schema
 @tool(args_schema=CourseSearchInput)
 
-## 工具定义方式对比
+### 工具定义方式对比
 
 | 方式                | 代码量           | 适用场景               | 示例                 |
 | :------------------ | :--------------- | :--------------------- | :------------------- |
@@ -295,7 +297,7 @@ result = hello_tool.invoke({"name": "小明"})
 | Pydantic 类作为工具 | 较多             | 复杂业务逻辑的工具     | 内部包含状态的工具   |
 | 字典格式            | 最少（但不推荐） | 描述远程/内置工具      | MCP 工具、服务端工具 |
 
-## return_direct——直接返回最终结果
+### return_direct——直接返回最终结果
 
 默认情况下，工具执行后结果会返回给模型，模型再基于工具结果生成最终回复。但有时工具结果本身就是你想要的最终答案。
 
@@ -313,7 +315,7 @@ result = hello_tool.invoke({"name": "小明"})
 
 也就是说多工具调用的时候 只要有一个设置了直接返回结果，那么所有的其他工具 都默认直接返回结果，不会送入llm 进行二次加工
 
-## InjectedToolCallId——获取工具调用 ID
+### InjectedToolCallId——获取工具调用 ID
 
 有时工具需要知道"是谁调用了它"——**InjectedToolCallId** 可以在工具函数中注入当前的 tool_call_id
 
@@ -331,13 +333,13 @@ tool_call_id: 系统自动注入的工具调用 ID
 
 这也是它被设计为"注入参数"而不是普通参数的原因： 它代表的是 LangChain Runtime 当前正在执行的这一次 ToolCall 上下文， 而不是用户输入的一部分。
 
-## ToolException——工具异常处理
+### ToolException——工具异常处理
 
 工具执行过程中可能会出错。使用 **ToolException** 抛出明确的工具异常，让 Agent 知道出了问题。
 
 **raise** ToolException(f"用户 ID 必须为正整数，收到了: {user_id}")
 
-\# 异常调用 1：无效 ID
+    # 异常调用 1：无效 ID
 **try**:
   get_user_info.invoke({"user_id": -1})
 **except** ToolException **as** e:
@@ -345,17 +347,17 @@ tool_call_id: 系统自动注入的工具调用 ID
 
 *这里之所以能在 .invoke() 外层用 try/except 捕获到 ToolException，是因为工具默认的* **handle_tool_error** *为 False——异常不会被工具自己吞掉，而是照常向上抛出。如果希望工具"自己扛住"错误、把错误信息转成字符串返回给模型而不是抛异常，就是下一节要讲的 handle_tool_error。*
 
-## handle_tool_error——让工具自己处理错误
+### handle_tool_error——让工具自己处理错误
 
 当希望某个工具出错时不中断程序，而是把错误信息转成一段文本、当作正常返回值交给模型自己去理解和修正时，可以在定义工具时设置 **handle_tool_error**（注意是单数，没有 s）。这是 BaseTool 上的一个属性，最简单的设置方式是直接写在 @tool 装饰器里：
 
-\# handle_tool_error=True：出错时不再抛异常，
-\# 而是把 ToolException 的内容转成字符串，正常返回给模型
+    # handle_tool_error=True：出错时不再抛异常，
+    # 而是把 ToolException 的内容转成字符串，正常返回给模型
 @tool(handle_tool_error=True)
 
-\# 如果想让所有工具的错误都由 Agent 统一处理（而不是逐个工具设置），
-\# 可以在 create_agent 内部使用的 ToolNode 层面配置。
-\# 在较新版本的 langchain 中，可以这样为整个 Agent 打开错误兜底
+    # 如果想让所有工具的错误都由 Agent 统一处理（而不是逐个工具设置），
+    # 可以在 create_agent 内部使用的 ToolNode 层面配置。
+    # 在较新版本的 langchain 中，可以这样为整个 Agent 打开错误兜底
 
 | handle_tool_error              | 行为                                                     | 适用场景                               |
 | :----------------------------- | :------------------------------------------------------- | :------------------------------------- |
@@ -368,7 +370,7 @@ tool_call_id: 系统自动注入的工具调用 ID
 
 *工具设置了* **handle_tool_error=True** *后，ToolException 的内容会以一条 ToolMessage 的形式正常出现在对话历史里（上面输出中的 [tool] 那一行），而不会让程序崩溃；模型看到这条错误信息后，会用自然语言把它转达给用户，并给出可用的替代方案。这正是 return_direct、InjectedToolCallId、ToolException 和 handle_tool_error 组合使用时的典型效果：既保证了工具调用的健壮性，又不牺牲用户体验。*
 
-# LangChain 工具访问 -- InjectedState 与 InjectedStore
+## LangChain 工具访问 -- InjectedState 与 InjectedStore
 
 有时工具需要访问更多上下文信息，比如当前对话的状态、用户的持久化数据等。
 
@@ -376,7 +378,7 @@ LangChain 通过依赖注入机制，让工具函数能够自动获取这些信�
 
 ------
 
-## InjectedState——在工具中访问 Agent 状态
+### InjectedState——在工具中访问 Agent 状态
 
 默认情况下，工具只能通过参数接收模型传来的数据。但有时工具需要知道当前对话的上下文——比如之前的对话历史、用户已确认的信息等。
 
@@ -387,13 +389,13 @@ state: Annotated[dict[str, Any], InjectedState]
 state: 系统自动注入的当前 Agent 状态
 
 都是由系统自动注入，这是由langchain 来实现的吗
-\# InjectedState 会被自动注入，Agent 不需要传这个参数
+    # InjectedState 会被自动注入，Agent 不需要传这个参数
 
-\# state 不需要传，由框架自动注入
+    # state 不需要传，由框架自动注入
 
 *InjectedState 让你可以访问 AgentState 中的所有字段。如果你扩展了 state_schema（增加了自定义字段），这些字段也可以被 InjectedState 读取到。*
 
-## InjectedStore——在工具中访问持久化存储
+### InjectedStore——在工具中访问持久化存储
 
 Agent 状态（state）是对话级别的，对话结束就没了。而 **Store** 是跨会话的持久化存储，可以用来保存用户偏好、学习进度等长期信息。
 
@@ -409,7 +411,7 @@ agent = create_agent(
   store=store, # 将 Store 传入 Agent
 )
 
-## InjectedState vs InjectedStore 对比
+### InjectedState vs InjectedStore 对比
 
 | 维度     | InjectedState                    | InjectedStore                 |
 | :------- | :------------------------------- | :---------------------------- |
@@ -431,7 +433,7 @@ store 通过 InjectedStore() 手动调用 put ()方法，进行存储，
 
 什么是 命名空间 + 键 的层级结构 
 
-## InjectedToolArg——标记通用注入参数
+### InjectedToolArg——标记通用注入参数
 
 除了专门的 InjectedState 和 InjectedStore，你还可以用 **InjectedToolArg** 标记任何需要框架注入的参数
 
@@ -443,7 +445,7 @@ injected_param: 这个参数由框架注入（Agent 不需要提供）
 
 *InjectedToolArg 是通用的注入标记，InjectedState、InjectedStore 和 InjectedToolCallId 都是基于它实现的。大多数情况下使用专门的注入标记即可，InjectedToolArg 用于扩展自定义注入逻辑。*
 
-# create_agent() 函数
+## create_agent() 函数
 
 create_agent() 是 LangChain 最核心的函数，它会创建一个完整的 Agent 图（StateGraph），包含模型调用、工具执行、循环控制等全部逻辑。
 
@@ -534,14 +536,14 @@ create_agent() 返回一个 **CompiledStateGraph** 对象，这是 LangGraph 的
 | get_state(config)                   | 获取当前状态           | 查看/恢复对话状态 |
 | update_state(config, values)        | 更新状态               | 手动修改对话状态  |
 
-\# 使用 stream_mode="updates" 可以看到每一个步骤
+    # 使用 stream_mode="updates" 可以看到每一个步骤
 
 agent.stream(
   {"messages": [HumanMessage(content="杭州现在天气怎么样？几点了？")]},
   stream_mode="updates",
 )
 
-## stream_mode 详解
+### stream_mode 详解
 
 stream() 支持多种 stream_mode，每种提供不同粒度的信息：
 
@@ -552,7 +554,7 @@ stream() 支持多种 stream_mode，每种提供不同粒度的信息：
 | messages | 逐 Token 的消息流        | 前端流式展示 AI 打字效果                     |
 | custom   | 自定义事件               | Middleware 通过 stream_writer 发送自定义事件 |
 
-## Agent 的退出条件
+### Agent 的退出条件
 
 Agent 什么时候停止？主要有以下几种情况：
 
@@ -579,34 +581,34 @@ invoke vs stream 对比
 关于异步场景，有什么例子可以举例吗
 stream 是不是可以搭配这 带有深度思考 比如reasoning_context 字段的 模型 进行搭配使用
 
-## 在 with_config 中传入线程 ID
+### 在 with_config 中传入线程 ID
 
 如果你使用了 checkpointer，需要通过 config 传入 thread_id 来管理对话线程
 checkpointer 是有关于 记忆相关的内容吧，好像是会话级别的短期记忆
 checkpointer 是不是 会存储一些 thread_id 之类的东西，会话信息 可以持久化到数据库中 然后再恢复
 
-# LangChain AgentState 状态管理
+## LangChain AgentState 状态管理
 
 Agent 在执行过程中需要维护状态——消息历史、结构化响应、流程控制等。理解 AgentState 的结构和用法，是自定义 Agent 行为的关键。
 
 ------
 
-## AgentState 结构
+### AgentState 结构
 
 AgentState 是一个 TypedDict，默认包含三个字段
 
-\# AgentState 的实际定义（简化版）
+    # AgentState 的实际定义（简化版）
 **class** AgentState(TypedDict):
-  \# messages：消息历史，使用 add_messages 作为 reducer
-  \# Required 表示调用时必须提供
+  # messages：消息历史，使用 add_messages 作为 reducer
+  # Required 表示调用时必须提供
   messages: Required[Annotated[list[AnyMessage], add_messages]]
 
-  \# jump_to：流程跳转控制，ephemeral（使用后自动清除）
-  \# NotRequired 表示可选
+  # jump_to：流程跳转控制，ephemeral（使用后自动清除）
+  # NotRequired 表示可选
   jump_to: NotRequired[Annotated[str | None, EphemeralValue]]
 
-  \# structured_response：结构化输出结果
-  \# NotRequired 表示可选，仅在 response_format 设置时出现
+  # structured_response：结构化输出结果
+  # NotRequired 表示可选，仅在 response_format 设置时出现
   structured_response: NotRequired[Any]
 
 | 字段                | 类型             | 是否必填 | 说明                                                         |
@@ -617,7 +619,7 @@ AgentState 是一个 TypedDict，默认包含三个字段
 
 我们create_agent() 中 声明 response_format 是什么  那么 AgentState 中的structured_response 是不是 只用来做一个记录呢？并不会有什么 影响
 
-## messages——消息历史的 Reducer 机制
+### messages——消息历史的 Reducer 机制
 
 messages 字段使用了 **add_messages** reducer。这意味着更新 messages 时不是覆盖，而是**追加**
 
@@ -629,21 +631,21 @@ add_messages 的智能特性：
 
 result = add_messages(existing, [new_msg])
 
-## jump_to——流程跳转控制
+### jump_to——流程跳转控制
 
 jump_to 是 Middleware 中最常用的字段，用于在 Agent 的各个节点间跳转。
 
 jump_to 是一个 **ephemeral**（瞬态）字段——使用一次后自动清除，不需要手动重置。
 
-\# 声明可跳转目标 "end"
+    # 声明可跳转目标 "end"
 @before_model(can_jump_to=["end"])
 
-\# 检查是否包含不当内容（简化示例）
+    # 检查是否包含不当内容（简化示例）
   **if** "密码" **in** str(last_msg.content):
-    \# jump_to="end" 直接结束 Agent，不让模型回复
+    # jump_to="end" 直接结束 Agent，不让模型回复
     **return** {
       "jump_to": "end",
-      \# 使用 AIMessage
+      # 使用 AIMessage
       "messages": [AIMessage(
         content="抱歉，出于安全原因，不能回答关于密码的问题。"
       )]
@@ -658,17 +660,17 @@ jump_to 是一个 **ephemeral**（瞬态）字段——使用一次后自动清�
 
 *jump_to 是 ephemeral 的——每次节点执行后自动清除。这意味着你不需要在跳转后手动将 jump_to 设回 None，Agent 会自动处理。*
 
-## structured_response——获取结构化输出
+### structured_response——获取结构化输出
 
 当使用 response_format 参数时，Agent 会将结构化输出存储在 structured_response 字段中：
 
 response_format=CourseRecommendation,
 
-## 自定义 State 扩展
+### 自定义 State 扩展
 
 在实际应用中，你可能需要 Agent 维护额外的状态。通过继承 AgentState 来扩展
 
-## state_schema vs middleware state_schema
+### state_schema vs middleware state_schema
 
 既可以通过 create_agent() 的 state_schema 参数扩展状态，也可以通过 Middleware 的 state_schema 扩展。两者的区别：
 
@@ -679,21 +681,21 @@ response_format=CourseRecommendation,
 
 *推荐做法：将通用的业务状态字段放在 state_schema 中，将特定 middleware 相关的内部字段放在 middleware 的 state_schema 中。这样职责清晰，不会相互污染。*
 
-# System Prompt 与 Dynamic Prompt
+## System Prompt 与 Dynamic Prompt
 
 System Prompt（系统提示词）是控制 Agent 行为的核心手段。
 
-## system_prompt 参数
+### system_prompt 参数
 
 create_agent() 的 system_prompt 参数接受两种形式
 
-\# 方式 1：字符串（最简单）
+    # 方式 1：字符串（最简单）
 agent = create_agent(
   model=model,
   system_prompt="你是菜鸟教程 RUNOOB 的学习顾问，回答要简洁专业。",
 )
 
-\# 方式 2：SystemMessage 对象（可复用）
+    # 方式 2：SystemMessage 对象（可复用）
 system_msg = SystemMessage(
   content="你是菜鸟教程 RUNOOB 的学习顾问，回答要简洁专业。"
 )
@@ -723,12 +725,12 @@ agent = create_agent(
 )
 ```
 
-## @dynamic_prompt——动态生成提示词
+### @dynamic_prompt——动态生成提示词
 
 静态 system_prompt 对所有用户一视同仁。但实际应用中，你可能需要根据用户信息、对话上下文、时间等动态调整提示词。
 
 **@dynamic_prompt** 装饰器让你在每次模型调用前动态生成 system_prompt
-\# @dynamic_prompt 装饰器：接收 ModelRequest，返回新的 system_prompt
+    # @dynamic_prompt 装饰器：接收 ModelRequest，返回新的 system_prompt
 @dynamic_prompt
 **def** personalized_prompt(request: ModelRequest) -> str:
   """根据对话上下文动态生成个性化提示词"""
@@ -737,12 +739,12 @@ agent = create_agent(
 
 middleware=[personalized_prompt], # 通过 middleware 注入
 
-## @dynamic_prompt 进阶——结合运行时上下文
+### @dynamic_prompt 进阶——结合运行时上下文
 
 @dynamic_prompt 的 request 参数提供了丰富的信息
 
 """根据用户信息、时间和对话阶段动态生成提示词"""
-  \# 从 runtime.context 获取用户信息
+  # 从 runtime.context 获取用户信息
   context = request.runtime.context
 
 *@dynamic_prompt 在每次模型调用前都会执行，所以提示词可以随对话推进而变化。但注意不要在里面做太重的计算，否则会影响响应速度。*
@@ -751,7 +753,7 @@ middleware=[personalized_prompt], # 通过 middleware 注入
 
 *如果你希望 middleware 的提示词和静态提示词合并而不是覆盖，可以在 @dynamic_prompt 中手动拼接。request 中没有直接暴露原有的 system_prompt，所以如果需要保留原有内容，建议将静态提示词作为变量在函数中引用。*
 
-## System Prompt 设计清单
+### System Prompt 设计清单
 
 | 要素         | 说明                     | 示例                                  |
 | :----------- | :----------------------- | :------------------------------------ |
@@ -761,13 +763,13 @@ middleware=[personalized_prompt], # 通过 middleware 注入
 | 边界约束     | 明确什么不能做           | 不知道的就说不知道，不要编造          |
 | 格式要求     | 指定回复的格式（可选）   | 回复使用 Markdown 格式                |
 
-# LangChain 流式输出 Streaming
+## LangChain 流式输出 Streaming
 
 流式输出让 AI 的回复像打字一样逐字显示，极大地提升了用户体验。LangChain 的 Agent 内置了完善的流式输出支持。
 
 ------
 
-## 为什么需要流式输出
+### 为什么需要流式输出
 
 如果使用 invoke()，用户需要等待 Agent 完成所有步骤（多次模型调用 + 工具执行）才能看到结果。对于复杂任务，这可能耗时十几秒甚至更长。
 
@@ -778,7 +780,7 @@ middleware=[personalized_prompt], # 通过 middleware 注入
 | invoke() | 等待 → 一次性看到完整结果 | 脚本、API、批处理  |
 | stream() | 实时看到每一个 Token      | 聊天界面、实时展示 |
 
-## stream_mode="messages"——逐 Token 流式
+### stream_mode="messages"——逐 Token 流式
 
 这是最细粒度的流式模式，每个 chunk 对应一个 Token
 
@@ -793,17 +795,17 @@ metadata 包含了这个 chunk 的来源信息
 
 metadata.get('langgraph_node')
 
-## stream_mode="updates"——逐步查看 Agent 执行过程
+### stream_mode="updates"——逐步查看 Agent 执行过程
 
 这个模式在构建需要显示"思考过程"的界面时非常有用
 
-## stream_mode="custom"——发送自定义事件
+### stream_mode="custom"——发送自定义事件
 
 通过 Middleware 的 runtime.stream_writer()，你可以向流中发送自定义事件
 
 可以进行一个混合设计
 
-\# 使用 stream_mode=["updates", "custom"] 同时接收两种事件
+    # 使用 stream_mode=["updates", "custom"] 同时接收两种事件
 **print**("=== 混合流式输出 ===**\n**")
 **for** mode, chunk **in** agent.stream(
   {"messages": [HumanMessage(content="查一下 Python 课程")]},
@@ -820,13 +822,13 @@ metadata.get('langgraph_node')
 
 *stream_mode 可以组合使用，如 stream_mode=["updates", "custom", "messages"]。但过多的模式会增加流中的事件量，建议按需选择。*
 
-## 异步流式输出
+### 异步流式输出
 
 在 Web 服务中，使用异步流式可以避免阻塞事件循环
 
 > 生产环境中，建议将 Agent 实例创建为全局单例，避免每次请求都重新创建。Agent 的创建开销很小（主要是编译图），但复用实例更高效。
 
-## stream_mode 速查表
+### stream_mode 速查表
 
 | 模式     | 粒度           | 迭代对象                   | 典型用途           |
 | :------- | :------------- | :------------------------- | :----------------- |
@@ -836,7 +838,7 @@ metadata.get('langgraph_node')
 | custom   | 自定义         | 任意 dict                  | 进度通知、状态推送 |
 | debug    | 详细           | 调试信息                   | 开发阶段排查问题   |
 
-# LangChain 结构化输出
+## LangChain 结构化输出
 
 大多数时候，你需要的不是一段自由文本，而是结构化的数据——比如 JSON 对象。
 
@@ -844,7 +846,7 @@ LangChain 结构化输出(Structured Output) 让 Agent 按照你指定的格式�
 
 ------
 
-## 为什么需要结构化输出
+### 为什么需要结构化输出
 
 假设你需要从一段用户描述中提取姓名、年龄和职业：
 
@@ -855,7 +857,7 @@ LangChain 结构化输出(Structured Output) 让 Agent 按照你指定的格式�
 
 结构化输出省去了"从文本中解析数据"这一步，让 AI 的输出可以直接被程序使用。
 
-## 传入 Pydantic 模型
+### 传入 Pydantic 模型
 
 将 Pydantic 模型传给 response_format 参数即可
 
@@ -867,7 +869,7 @@ agent = create_agent(
 
 *返回的 structured_response 是 Pydantic 模型实例，而不是普通字典。这意味着你可以使用 .course_name 等属性访问，IDE 也能提供自动补全。*
 
-## 与工具共存的 Structured Output
+### 与工具共存的 Structured Output
 
 response_format 和 tools 可以同时使用——Agent 在需要时调用工具，最终输出结构化数据：
 
@@ -886,13 +888,13 @@ agent = create_agent(
 
 rec = result["structured_response"]
 
-\# 查看完整过程
+    # 查看完整过程
 **print**("**\n**=== 执行过程 ===")
 **for** msg **in** result["messages"]:
   **if** msg.type == "tool":
     **print**(f"  调用 {msg.name}: {msg.content}")
 
-## 复杂嵌套结构
+### 复杂嵌套结构
 
 Pydantic 支持嵌套、列表、枚举等复杂结构
 
@@ -916,23 +918,23 @@ agent = create_agent(
 
 plan = result["structured_response"]
 
-## 从消息中获取结构化输出
+### 从消息中获取结构化输出
 
 如果不需要 Agent 的工具调用能力，只是想从文本中提取结构化信息，可以直接用模型
 
-\# 直接在模型上使用 with_structured_output()
-\# 不需要 Agent
+    # 直接在模型上使用 with_structured_output()
+    # 不需要 Agent
 structured_model = model.with_structured_output(SentimentResult)
 
 *with_structured_output() 是 model 的方法，不需要 Agent 就可以使用。如果你的场景是"信息提取"而非"多步骤推理"，直接用 with_structured_output() 更简洁高效。*
 
-# LangChain 输出策略
+## LangChain 输出策略
 
 LangChain 提供了三种结构化输出策略，理解它们的区别和工作原理，能帮助你在不同场景下做出最佳选择。
 
 ------
 
-## 三种策略概述
+### 三种策略概述
 
 | 策略             | 原理                                                         | 模型支持                         | 响应速度               |
 | :--------------- | :----------------------------------------------------------- | :------------------------------- | :--------------------- |
@@ -940,11 +942,11 @@ LangChain 提供了三种结构化输出策略，理解它们的区别和工作�
 | ProviderStrategy | 使用模型原生的结构化输出能力（如 OpenAI 的 response_format） | 部分模型（GPT-4o+、Claude 3+等） | 较快（直接输出）       |
 | AutoStrategy     | 自动检测模型能力，选择最佳策略                               | 自动适配                         | 自动选择最优           |
 
-## ToolStrategy——工具调用模式
+### ToolStrategy——工具调用模式
 
 ToolStrategy 是兼容性最好的方式。它将你的 Schema 转换为一个"假工具"，模型通过调用这个工具来输出结构化数据。
 
-\# 显式指定使用 ToolStrategy
+    # 显式指定使用 ToolStrategy
 agent = create_agent(
   model=model,
   response_format=ToolStrategy(schema=WeatherReport),
@@ -957,23 +959,23 @@ ToolStrategy 多了一个工具调用步骤（调用名为 WeatherReport 的"假
 
 ToolStrategy 支持在结构化输出出错时自动重试：
 
-\# handle_errors=True：输出格式错误时，将错误信息反馈给模型重试
+    # handle_errors=True：输出格式错误时，将错误信息反馈给模型重试
 strategy_with_retry = ToolStrategy(
   schema=WeatherReport,
   handle_errors=True, # 默认 False
 )
 
-\# handle_errors 也可以是一个自定义错误消息模板
+    # handle_errors 也可以是一个自定义错误消息模板
 strategy_custom_error = ToolStrategy(
   schema=WeatherReport,
   handle_errors="格式有误，请按 {error} 修正后重新输出",
 )
 
-## ProviderStrategy——原生结构化输出
+### ProviderStrategy——原生结构化输出
 
 ProviderStrategy 使用模型提供商的原生能力（如 OpenAI 的 response_format 参数）。不是所有模型都支持。
 
-\# 显式指定 ProviderStrategy
+    # 显式指定 ProviderStrategy
 agent = create_agent(
   model=model,
   response_format=ProviderStrategy(schema=CourseInfo),
@@ -982,11 +984,11 @@ agent = create_agent(
 
 *ProviderStrategy 目前主要被 OpenAI 的 GPT-4o 及以上和 Claude 3 及以上支持。如果模型不支持，LangChain 会自动降级到 ToolStrategy。检查模型是否支持可以用 model.profile 查看。*
 
-## AutoStrategy——自动选择
+### AutoStrategy——自动选择
 
 这是最推荐的方式。传入 Pydantic 模型（而不是策略对象），LangChain 会自动选择最佳策略：
 
-\# 直接传入 Pydantic 模型——LangChain 自动选择策略
+    # 直接传入 Pydantic 模型——LangChain 自动选择策略
 model = init_chat_model("deepseek:deepseek-v4-flash", temperature=0)
 agent = create_agent(
   model=model,
@@ -1001,7 +1003,7 @@ agent = create_agent(
   pros: list[str] = Field(description="优点列表")
   cons: list[str] = Field(description="缺点列表")
 
-## 三种策略选择指南
+### 三种策略选择指南
 
 | 场景                       | 推荐策略                         | 原因                                   |
 | :------------------------- | :------------------------------- | :------------------------------------- |
@@ -1012,11 +1014,11 @@ agent = create_agent(
 
 *大多数情况下，直接传入 Pydantic 模型（即使用 AutoStrategy）就够了。只有在需要错误重试或明确控制策略行为时，才需要显式指定 ToolStrategy 或 ProviderStrategy。*
 
-# LangChain 中间件（Middleware）
+## LangChain 中间件（Middleware）
 
 LangChain Middleware（中间件）是 LangChain 最强大的特性。它让你在 Agent 执行的各个环节插入自定义逻辑，实现重试、降级、缓存、内容过滤、日志记录等功能——而不需要修改 Agent 本身的代码。
 
-## 什么是 Middleware
+### 什么是 Middleware
 
 Middleware 是 Agent 执行流程中的**钩子（Hook）**。每个钩子让你在特定的时间点执行自定义代码
 
@@ -1040,7 +1042,7 @@ Middleware 是 Agent 执行流程中的**钩子（Hook）**。每个钩子让你
 # 5. 输出结果
 ```
 
-## 六个钩子点
+### 六个钩子点
 
 LangChain 的 Middleware 提供了 6 个钩子，按执行时机分为两类：
 
@@ -1053,13 +1055,13 @@ LangChain 的 Middleware 提供了 6 个钩子，按执行时机分为两类：
 | wrap_tool_call  | 每次工具调用 | 包裹工具执行 | 工具重试、结果缓存、参数改写 |
 | after_agent     | 一次         | Agent 结束后 | 格式化输出、统计、清理资源   |
 
-## 两种使用方式
+### 两种使用方式
 
 Middleware 可以通过类继承或装饰器两种方式使用：
 
 ### 方式 1：装饰器（推荐）
 
-\# 装饰器方式：简单、直观
+    # 装饰器方式：简单、直观
 @before_model
 
 @after_model
@@ -1071,7 +1073,7 @@ Middleware 可以通过类继承或装饰器两种方式使用：
 
   @property
   **def** name(self) -> str:
-    \# 自定义中间件名称（默认是类名）
+    # 自定义中间件名称（默认是类名）
     **return** "logging"
 
   **def** before_agent(self, state, runtime):
@@ -1098,7 +1100,7 @@ Middleware 可以通过类继承或装饰器两种方式使用：
 - **before_agent 和 after_agent**：每个问题只执行一次
 - **before_model 和 after_model**：每次模型调用都执行（第一个问题调用了两次模型，所以各执行两次）
 
-## Middleware 的返回值
+### Middleware 的返回值
 
 Middleware 的返回值决定了是否要修改 Agent 状态或控制流程：
 
@@ -1110,13 +1112,13 @@ Middleware 的返回值决定了是否要修改 Agent 状态或控制流程：
 
 > 返回的 dict 会通过 Agent 状态的 reducer 合并。对于 messages 字段，使用 add_messages reducer，所以返回的 messages 会追加而非覆盖。
 
-# LangChain 中间件钩子 -- @before_model 与 @after_model
+## LangChain 中间件钩子 -- @before_model 与 @after_model
 
 before_model 和 after_model 是最常用的两个 中间件（Middleware） 钩子。它们在每次模型调用前后执行，适合做内容过滤、消息预处理、响应审核等。
 
 ------
 
-## @before_model——模型调用前拦截
+### @before_model——模型调用前拦截
 
 @before_model 在每次调用模型之前执行。你可以在这里修改消息、注入上下文条件、或直接跳过模型调用。
 
@@ -1124,7 +1126,7 @@ before_model 和 after_model 是最常用的两个 中间件（Middleware） 钩
 
 ### 场景 2：内容过滤——屏蔽敏感词
 
-## @after_model——模型调用后处理
+### @after_model——模型调用后处理
 
 @after_model 在模型回复后执行，适合审核模型输出、提取关键信息、追加后续指令等。
 
@@ -1132,7 +1134,7 @@ before_model 和 after_model 是最常用的两个 中间件（Middleware） 钩
 
 ### 场景 4：自动追加提示信息
 
-## can_jump_to——流程跳转控制
+### can_jump_to——流程跳转控制
 
 在 before_model 和 after_model 中，你可以通过 can_jump_to 参数和 jump_to 状态来控制 Agent 的流程：
 
@@ -1143,7 +1145,7 @@ before_model 和 after_model 是最常用的两个 中间件（Middleware） 钩
   **if** **not** messages:
     **return** None
 
-  \# 如果用户说"再见"，直接结束
+  # 如果用户说"再见"，直接结束
   last_content = str(messages[-1].content)
   **if** last_content.strip() **in** ["再见", "拜拜", "bye"]:
     **return** {
@@ -1162,7 +1164,7 @@ before_model 和 after_model 是最常用的两个 中间件（Middleware） 钩
 
 > 如果不在 can_jump_to 中声明目标，jump_to 会被忽略。这是一种安全机制，防止中间件意外跳转到不合法的节点。
 
-# LangChain 模型调用拦截 -- @wrap_model_call
+## LangChain 模型调用拦截 -- @wrap_model_call
 
 @wrap_model_call 是中间件（Middleware）中最强大的钩子。
 
@@ -1170,53 +1172,53 @@ before_model 和 after_model 是最常用的两个 中间件（Middleware） 钩
 
 ------
 
-## handler 回调
+### handler 回调
 
 @wrap_model_call 的核心是一个 **handler 回调函数**。调用 handler(request) 才会真正执行模型；不调用则跳过模型
 
 @wrap_model_call
 **def** my_middleware(request, handler):
-  \# 在模型调用前可以做任何事
+  # 在模型调用前可以做任何事
   **print**("模型即将被调用...")
 
-  \# 调用 handler(request) 才真正执行模型
+  # 调用 handler(request) 才真正执行模型
   response = handler(request)
 
-  \# 在模型调用后可以做任何事
+  # 在模型调用后可以做任何事
   **print**("模型调用完成")
 
   **return** response
 
-## 场景 1：重试机制
+### 场景 1：重试机制
 
 这是最常见的场景——模型调用可能因网络问题失败，自动重试可以提高可靠性：
 
-## 场景 2：模型降级/故障转移
+### 场景 2：模型降级/故障转移
 
 当主模型不可用时，自动切换到备用模型：
 
 *request.override() 是一个不可变方法——它返回一个新的 request 副本，不会修改原始对象。这确保了每次调用都是独立和安全的。*
 
-## 场景 3：缓存模型响应
+### 场景 3：缓存模型响应
 
 对于重复的查询，可以缓存模型响应以减少 API 调用成本
 
-## 场景 4：修改 request——动态注入系统消息
+### 场景 4：修改 request——动态注入系统消息
 
-\# 在原有 system_message 基础上追加时间信息
+    # 在原有 system_message 基础上追加时间信息
   **if** request.system_message:
     new_content = f"{request.system_message.content}**\n****\n**{time_context}"
   **else**:
     new_content = time_context
 
-  \# 用 override 创建新的 request
+  # 用 override 创建新的 request
   new_request = request.override(
     system_message=SystemMessage(content=new_content)
   )
 
   **return** handler(new_request)
 
-## 场景 5：多个 wrap_model_call 的组合
+### 场景 5：多个 wrap_model_call 的组合
 
 多个 wrap_model_call 中间件会自动按顺序组合——第一个在最外层
 
@@ -1249,13 +1251,13 @@ def inner_middleware(request, handler):
 # [外层] 结束
 ```
 
-# LangChain 工具调用拦截 -- @wrap_tool_call
+## LangChain 工具调用拦截 -- @wrap_tool_call
 
 @wrap_tool_call 让你在工具执行层面实现与 @wrap_model_call 类似的控制能力——重试、缓存、参数改写、结果后处理。
 
 ------
 
-## 基本结构
+### 基本结构
 
 @wrap_tool_call 的结构与 @wrap_model_call 类似，接收 request 和 handler 两个参数
 
@@ -1276,27 +1278,27 @@ result = handler(request)
 return result
 ```
 
-## 场景 1：工具调用重试
+### 场景 1：工具调用重试
 
 工具执行可能因外部服务不稳定而失败，自动重试可以提升可靠性：
 
-## 场景 2：修改工具参数
+### 场景 2：修改工具参数
 
 在工具执行之前动态修改参数，可以在不修改工具代码的情况下实现参数转换
 
 """自动规范化城市名称（全角转半角、去除多余空格等）"""
   tool_call = request.tool_call
 
-## 场景 3：工具结果缓存
+### 场景 3：工具结果缓存
 
 对于重复的工具调用（相同工具 + 相同参数），可以缓存结果
 
 """缓存工具执行结果"""
-  \# 生成缓存键：工具名 + 参数
+  # 生成缓存键：工具名 + 参数
   tool_name = request.tool_call.get("name", "unknown")
   tool_args = str(request.tool_call.get("args", {}))
 
-## 场景 4：工具调用日志与监控
+### 场景 4：工具调用日志与监控
 
 记录所有工具调用的详细信息
 
@@ -1304,7 +1306,7 @@ return result
   tool_name = request.tool_call.get("name", "unknown")
   tool_args = request.tool_call.get("args", {})
 
-## 场景 5：根据结果决定后续流程
+### 场景 5：根据结果决定后续流程
 
 你可以根据工具执行结果决定是否继续 Agent 循环
 
@@ -1315,7 +1317,7 @@ return result
 
 我们什么时候 会返回一个 Command 
 
-## @wrap_model_call vs @wrap_tool_call
+### @wrap_model_call vs @wrap_tool_call
 
 | 维度         | @wrap_model_call                      | @wrap_tool_call                    |
 | :----------- | :------------------------------------ | :--------------------------------- |
@@ -1324,13 +1326,13 @@ return result
 | 返回类型     | ModelResponse 或 AIMessage            | ToolMessage 或 Command             |
 | 适用场景     | 模型重试、降级、缓存、prompt 修改     | 工具重试、缓存、参数改写、结果处理 |
 
-# LangChain @before_agent 与 @after_agent
+## LangChain @before_agent 与 @after_agent
 
 before_agent 和 after_agent 是 Agent 级别的钩子，分别在 Agent 执行之前和完成之后各执行一次。适合做初始化、预处理、后处理和统计分析。
 
 ------
 
-## before_agent -- Agent 开始前的准备工作
+### before_agent -- Agent 开始前的准备工作
 
 before_agent 在 Agent 正式开始执行前运行，只执行一次。你可以在这里做输入预处理、用户信息验证、资源初始化等。
 
@@ -1342,10 +1344,10 @@ before_agent 在 Agent 正式开始执行前运行，只执行一次。你可以
 ### 场景 2：访问控制 -- 权限检查
 
 """检查用户是否有权限使用 Agent"""
-  \# 从 runtime.context 获取用户信息
+  # 从 runtime.context 获取用户信息
   context = runtime.context
 
-## after_agent -- Agent 完成后的处理
+### after_agent -- Agent 完成后的处理
 
 after_agent 在 Agent 完成所有处理后执行（只执行一次）。你可以在这里格式化最终输出、记录统计信息、清理资源等。
 
@@ -1354,12 +1356,12 @@ after_agent 在 Agent 完成所有处理后执行（只执行一次）。你可�
 """统计对话信息并追加到结果中"""
   messages = state.get("messages", [])
 
-  \# 统计数据
+  # 统计数据
   model_calls = 0
   tool_calls = 0
   total_chars = 0
 
-\# 通过 custom stream 发送统计信息
+    # 通过 custom stream 发送统计信息
   runtime.stream_writer({
     "type": "stats",
     "model_calls": model_calls,
@@ -1373,9 +1375,9 @@ after_agent 在 Agent 完成所有处理后执行（只执行一次）。你可�
 """在结果中追加格式化的总结信息"""
   messages = state.get("messages", [])
 
-## 四个钩子的完整协作示例
+### 四个钩子的完整协作示例
 
-## 实例
+### 实例
 
 **from** langchain.agents.middleware **import** (
   before_agent, after_agent, before_model, after_model
@@ -1385,7 +1387,7 @@ after_agent 在 Agent 完成所有处理后执行（只执行一次）。你可�
 **from** langchain.messages **import** HumanMessage
 **from** langchain.tools **import** tool
 
-\# ----- 定义所有钩子 -----
+    # ----- 定义所有钩子 -----
 
 @before_agent
 **def** init_session(state, runtime):
@@ -1419,7 +1421,7 @@ after_agent 在 Agent 完成所有处理后执行（只执行一次）。你可�
   **return** None
 
 
-\# ----- 创建 Agent -----
+    # ----- 创建 Agent -----
 
 @tool
 **def** get_weather(city: str) -> str:
@@ -1454,7 +1456,7 @@ result = agent.invoke({
 
 ------
 
-## Middleware 钩子总结
+### Middleware 钩子总结
 
 | 钩子            | 执行次数     | 何时使用                         | 关键能力                  |
 | :-------------- | :----------- | :------------------------------- | :------------------------ |
@@ -1465,7 +1467,7 @@ result = agent.invoke({
 | wrap_tool_call  | 每次工具调用 | 工具重试、缓存、参数改写         | 完全控制工具执行          |
 | after_agent     | 1 次         | 输出格式化、统计分析、清理       | 最终状态修改              |
 
-# LangChain 对话记忆 -- Checkpointer
+## LangChain 对话记忆 -- Checkpointer
 
 默认情况下，每次 agent.invoke() 都是独立的，Agent 不记得之前聊过什么。
 
@@ -1473,11 +1475,11 @@ Checkpointer（检查点保存器）让 Agent 能够记住对话历史，实现�
 
 ------
 
-## 使用 Checkpointer 记住对话
+### 使用 Checkpointer 记住对话
 
 添加 Checkpointer 后，同一 thread_id 下的对话会自动关联：
 
-\# 创建一个内存 Checkpointer
+    # 创建一个内存 Checkpointer
 checkpointer = InMemorySaver()
 
 model = init_chat_model("deepseek:deepseek-v4-flash", temperature=0)
@@ -1487,17 +1489,17 @@ agent = create_agent(
   system_prompt="你是菜鸟教程 RUNOOB 的助手。",
 )
 
-\# 使用 thread_id 来标识对话线程
+    # 使用 thread_id 来标识对话线程
 config = {"configurable": {"thread_id": "user-001"}}
 
-\# 第一轮
+    # 第一轮
 result1 = agent.invoke(
   {"messages": [HumanMessage(content="我叫小明，我在学 Python")]},
   config=config,
 )
 **print**(f"第一轮: {result1['messages'][-1].content}")
 
-\# 第二轮——使用相同的 thread_id，Agent 记住了！
+    # 第二轮——使用相同的 thread_id，Agent 记住了！
 result2 = agent.invoke(
   {"messages": [HumanMessage(content="我叫什么名字？我在学什么？")]},
   config=config,
@@ -1506,7 +1508,7 @@ result2 = agent.invoke(
 
 *thread_id 是关键。同一个 thread_id 下的对话是连续的，不同 thread_id 之间的对话完全隔离。这让你可以用一个 Agent 实例同时服务多个用户。*
 
-## Checkpointer 的工作原理
+### Checkpointer 的工作原理
 
 Checkpointer 在每次 Agent 执行后自动保存状态快照（checkpoint）。下一次使用相同 thread_id 调用时，自动从最近的 checkpoint 恢复状态。
 
@@ -1517,7 +1519,7 @@ Checkpointer 在每次 Agent 执行后自动保存状态快照（checkpoint）�
 3. 如果有，加载历史消息，追加新消息后继续
 4. 执行完成后，自动保存新的 checkpoint
 
-## Checkpointer 类型
+### Checkpointer 类型
 
 | 类型          | 存储位置      | 持久化               | 安装                          | 适用场景             |
 | :------------ | :------------ | :------------------- | :---------------------------- | :------------------- |
@@ -1537,7 +1539,7 @@ Checkpointer 在每次 Agent 执行后自动保存状态快照（checkpoint）�
 pip install langgraph-checkpoint-sqlite
 ```
 
-## 实例
+### 实例
 
 **from** langgraph.checkpoint.sqlite **import** SqliteSaver
 **from** langchain.agents **import** create_agent
@@ -1549,7 +1551,7 @@ model = init_chat_model(
   temperature=0,
 )
 
-\# 必须用 with 语句进入，退出时会自动关闭数据库连接
+    # 必须用 with 语句进入，退出时会自动关闭数据库连接
 **with** SqliteSaver.from_conn_string("conversations.db") **as** checkpointer:
   agent = create_agent(
     model=model,
@@ -1574,42 +1576,42 @@ model = init_chat_model(
 
 ------
 
-## 管理对话线程
+### 管理对话线程
 
 ### 查看对话状态
 
-## 实例
+### 实例
 
-\# 查看对话状态
+    # 查看对话状态
 state = agent.get_state(config)
 **print**(f"下一步: {state.next}") # () 表示空闲
 **print**(f"消息数: {len(state.values.get('messages', []))}")
 
-\# 查看对话历史
+    # 查看对话历史
 **for** msg **in** state.values.get("messages", []):
   **print**(f"  [{msg.type}] {str(msg.content)[:60]}")
 
 ### 创建新线程
 
-## 实例
+### 实例
 
-\# 不同的 thread_id = 不同的独立对话
+    # 不同的 thread_id = 不同的独立对话
 config_alice = {"configurable": {"thread_id": "alice"}}
 config_bob = {"configurable": {"thread_id": "bob"}}
 
-\# Alice 的对话
+    # Alice 的对话
 agent.invoke(
   {"messages": [HumanMessage(content="我是 Alice")]},
   config=config_alice,
 )
 
-\# Bob 的对话——完全独立，不知道 Alice 说了什么
+    # Bob 的对话——完全独立，不知道 Alice 说了什么
 agent.invoke(
   {"messages": [HumanMessage(content="我是 Bob")]},
   config=config_bob,
 )
 
-\# 验证隔离性
+    # 验证隔离性
 alice_state = agent.get_state(config_alice)
 bob_state = agent.get_state(config_bob)
 **print**(f"Alice 对话消息数: {len(alice_state.values['messages'])}")
@@ -1617,15 +1619,15 @@ bob_state = agent.get_state(config_bob)
 
 ------
 
-## 更新状态——手动修改对话
+### 更新状态——手动修改对话
 
 有时你需要手动修改对话状态，比如清空对话、插入系统消息等：
 
-## 实例
+### 实例
 
 **from** langchain.messages **import** SystemMessage
 
-\# 更新状态——插入一条系统消息
+    # 更新状态——插入一条系统消息
 agent.update_state(
   config,
   {
@@ -1635,17 +1637,17 @@ agent.update_state(
   }
 )
 
-\# 之后的对话会包含这条插入的消息
+    # 之后的对话会包含这条插入的消息
 
 > update_state() 的参数会通过 add_messages reducer 处理（对 messages 字段而言），所以新消息会追加而不是覆盖。如果想清空历史重新开始，最简单的方式是换一个新的 `thread_id`；如果确实需要删除某几条历史消息，可以在 update_state() 中传入对应的 `RemoveMessage`（来自 `langchain.messages`）来精确移除指定的消息。
 
-# LangChain 跨会话存储 —— Store
+## LangChain 跨会话存储 —— Store
 
 Checkpointer 解决了"单个对话内记忆"的问题。但如果你需要在不同对话之间共享数据——比如用户偏好、学习进度——就需要用到 **Store**。
 
 ------
 
-## Checkpointer vs Store
+### Checkpointer vs Store
 
 | 维度     | Checkpointer               | Store                    |
 | :------- | :------------------------- | :----------------------- |
@@ -1656,13 +1658,13 @@ Checkpointer 解决了"单个对话内记忆"的问题。但如果你需要在�
 
 ------
 
-## Store 的基本操作
+### Store 的基本操作
 
 Store 使用 **命名空间 + 键** 的层级结构来组织数据：
 store = InMemoryStore()
 
-\# 写入数据：put(namespace, key, value)
-\# namespace 是元组，key 是字符串，value 是字典
+    # 写入数据：put(namespace, key, value)
+    # namespace 是元组，key 是字符串，value 是字典
 store.put(
   ("users", "user_001"),      # 命名空间
   "preferences",           # 键
@@ -1673,16 +1675,16 @@ store.put(
   }
 )
 
-\# 读取数据：get(namespace, key)
+    # 读取数据：get(namespace, key)
 prefs = store.get(("users", "user_001"), "preferences")
 
-\# 搜索数据：search(namespace)
+    # 搜索数据：search(namespace)
 all_user_data = store.search(("users", "user_001"))
 
-\# 删除数据：delete(namespace, key)
+    # 删除数据：delete(namespace, key)
 store.delete(("users", "user_001"), "preferences")
 
-## 在 Agent 中使用 Store
+### 在 Agent 中使用 Store
 
 将 Store 传给 create_agent()，Agent 中的所有工具都能通过 InjectedStore 访问它
 
@@ -1699,21 +1701,21 @@ agent = create_agent(
   system_prompt="你是菜鸟教程 RUNOOB 的课程顾问。",
 )
 
-## Store 的持久化
+### Store 的持久化
 
 InMemoryStore 的数据在程序重启后丢失。生产环境可以使用 PostgresStore 等持久化方案：
 
-## 实例
+### 实例
 
-\# 开发阶段
+    # 开发阶段
 **from** langgraph.store.memory **import** InMemoryStore
 store = InMemoryStore()
 
-\# 生产环境（需要 PostgreSQL）
-\# from langgraph.store.postgres import PostgresStore
-\# store = PostgresStore.from_conn_string("postgresql://...")
+    # 生产环境（需要 PostgreSQL）
+    # from langgraph.store.postgres import PostgresStore
+    # store = PostgresStore.from_conn_string("postgresql://...")
 
-## Store 使用建议
+### Store 使用建议
 
 | 场景     | namespace 示例          | key 示例    | 说明                                         |
 | :------- | :---------------------- | :---------- | :------------------------------------------- |
@@ -1724,7 +1726,7 @@ store = InMemoryStore()
 
 > Checkpointer 负责"对话到哪了"，Store 负责"用户是谁、会什么、喜欢什么"。两者配合使用，才能构建出有持续记忆的智能 Agent。
 
-# LangChain 人工介入
+## LangChain 人工介入
 
 在生产环境中，有些操作需要人工确认——比如发送邮件、执行删除、处理支付。
 
@@ -1732,14 +1734,14 @@ store = InMemoryStore()
 
 ------
 
-## interrupt()——在工具中暂停执行
+### interrupt()——在工具中暂停执行
 
 **interrupt()** 函数可以让工具执行到一半时暂停，等待外部输入后再继续：
 
-\# 在工具中使用 interrupt() 暂停
+    # 在工具中使用 interrupt() 暂停
 **def** send_email(to: str, subject: str, body: str) -> str:
   """发送邮件（需要人工审批）"""
-  \# 暂停执行，向外部发送审批请求
+  # 暂停执行，向外部发送审批请求
   approval = interrupt({
     "action": "send_email",
     "to": to,
@@ -1748,7 +1750,7 @@ store = InMemoryStore()
     "message": "请确认是否发送此邮件？"
   })
 
-  \# 等待外部传入 approval 后继续
+  # 等待外部传入 approval 后继续
   **if** approval.get("approved"):
     **return** f"邮件已发送给 {to}"
   **else**:
@@ -1771,15 +1773,15 @@ interrupt({
 
 
 
-## interrupt_before / interrupt_after 参数
+### interrupt_before / interrupt_after 参数
 
 除了在工具中使用 interrupt()，你还可以在 create_agent() 中设置全局中断点
 
- \# 在工具节点之前暂停（每次调用工具前都需要审批）
+ # 在工具节点之前暂停（每次调用工具前都需要审批）
   interrupt_before=["tools"],
 
-  \# 在模型节点之后暂停（每次模型回复后都可以检查）
-  \# interrupt_after=["model"],
+  # 在模型节点之后暂停（每次模型回复后都可以检查）
+  # interrupt_after=["model"],
 
 
 
@@ -1792,13 +1794,13 @@ interrupt({
 
 *HITL 需要 Checkpointer 配合使用。因为 Agent 在 interrupt() 处暂停时，其状态必须被持久化，才能在恢复时正确继续执行。*
 
-# LangChain 多 Agent
+## LangChain 多 Agent
 
 当一个任务太复杂，单个 Agent 难以胜任时，你可以创建多个各司其职的 Agent，让它们像团队一样协作。
 
 ------
 
-## 为什么需要多 Agent
+### 为什么需要多 Agent
 
 单个 Agent 的问题：
 
@@ -1810,7 +1812,7 @@ interrupt({
 
 ------
 
-## 方式 1：子 Agent 作为工具
+### 方式 1：子 Agent 作为工具
 
 将 Agent 编译成 CompiledStateGraph，然后作为一个工具注册给父 Agent：
 
@@ -1900,7 +1902,7 @@ result = coordinator.invoke({
 print(result["messages"][-1].content)
 ```
 
-## 方式 2：用 name 参数区分 Agent
+### 方式 2：用 name 参数区分 Agent
 
 当你将子 Agent 作为工具嵌入时，设置 name 参数有助于追踪消息来源
 
@@ -1917,7 +1919,7 @@ agent = create_agent(
 )
 ```
 
-## 方式 3：Middleware 实现 Agent 路由
+### 方式 3：Middleware 实现 Agent 路由
 
 更复杂的多 Agent 场景可以通过 Middleware 实现动态路由：
 
@@ -1950,7 +1952,7 @@ def route_by_user_role(state, runtime):
     return None
 ```
 
-## 多 Agent 架构模式
+### 多 Agent 架构模式
 
 | 模式       | 结构                             | 适用场景                       |
 | :--------- | :------------------------------- | :----------------------------- |
@@ -1960,13 +1962,13 @@ def route_by_user_role(state, runtime):
 
 > 多 Agent 系统增加了复杂度和 Token 消耗。不要为了"多 Agent"而多 Agent——先用单个 Agent + 良好设计的 system_prompt 和 Middleware 解决问题。只有当确实需要领域隔离或独立上下文时，才引入多 Agent。
 
-# LangChain RAG
+## LangChain RAG
 
 RAG（Retrieval-Augmented Generation，检索增强生成）让 AI 能够基于你的私有文档回答问题，不需要微调模型，只需将文档向量化存储，Agent 就能检索相关内容来回答。
 
 ------
 
-## RAG 是什么
+### RAG 是什么
 
 普通的大模型只能回答训练数据中有的内容。如果你的文档是私有的（公司内部文档、个人笔记），模型就"不知道"。RAG 解决了这个问题：
 
@@ -1975,18 +1977,18 @@ RAG（Retrieval-Augmented Generation，检索增强生成）让 AI 能够基于�
 
 ### Embedding 模型初始化
 
-## 实例
+### 实例
 
 **from** dotenv **import** load_dotenv
 load_dotenv()
 
 **from** langchain_openai **import** OpenAIEmbeddings
 
-\# OpenAI 的文本嵌入模型
-\# 将文本转换为向量（一组浮点数）
+    # OpenAI 的文本嵌入模型
+    # 将文本转换为向量（一组浮点数）
 embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 
-\# 测试：将一段文本转为向量
+    # 测试：将一段文本转为向量
 text = "菜鸟教程 RUNOOB 是一个编程学习平台"
 vector = embeddings.embed_query(text)
 
@@ -2010,33 +2012,33 @@ embeddings = OpenAIEmbeddings(
   chunk_size=10,
 )
 
-## 创建向量存储
+### 创建向量存储
 
-\# 初始化 Embedding 模型
+    # 初始化 Embedding 模型
 embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 
-\# 创建 Chroma 向量存储（数据保存在本地目录）
+    # 创建 Chroma 向量存储（数据保存在本地目录）
 vector_store = Chroma(
   collection_name="runoob_docs",
   embedding_function=embeddings,
   persist_directory="./chroma_db", # 持久化目录
 )
 
-\# 添加文档（最简单的形式：文本列表）
+    # 添加文档（最简单的形式：文本列表）
 texts = [
   "菜鸟教程（RUNOOB）是一个免费的编程学习网站，提供 HTML、CSS、JavaScript、Python 等教程。",
   "Python3 基础教程共 30 章，适合零基础入门，包含环境搭建、语法基础、面向对象等内容。",
   "HTML 基础教程共 25 章，覆盖 HTML 标签、表单、多媒体等基础知识。",
 ]
 
-\# add_texts 自动将文本转为向量并存储
+    # add_texts 自动将文本转为向量并存储
 vector_store.add_texts(texts)
 
 ### 语义检索
 
-## 实例
+### 实例
 
-\# 语义搜索——不依赖关键词匹配，而是语义相似度
+    # 语义搜索——不依赖关键词匹配，而是语义相似度
 results = vector_store.similarity_search(
   "我想学 Python，有什么教程推荐？",
   k=2, # 返回最相似的 2 个结果
@@ -2046,20 +2048,20 @@ results = vector_store.similarity_search(
 
 ------
 
-## 创建 Retriever 检索器
+### 创建 Retriever 检索器
 
 Retriever 是 Vector Store 的标准化接口：
 
-\# 从 vector_store 创建 retriever
+    # 从 vector_store 创建 retriever
 retriever = vector_store.as_retriever(
   search_type="similarity", # 相似度搜索
   search_kwargs={"k": 3},   # 返回前 3 个结果
 )
 
-\# 使用 retriever
+    # 使用 retriever
 docs = retriever.invoke("Python 学习路线")
 
-# LangChain 文档加载与切分
+## LangChain 文档加载与切分
 
 之前的文章我们手动输入文本，但在实际项目中，文档可能来自 PDF、网页、Markdown 文件等。
 
@@ -2067,7 +2069,7 @@ docs = retriever.invoke("Python 学习路线")
 
 ------
 
-## Document Loader——加载文档
+### Document Loader——加载文档
 
 LangChain 提供了数十种文档加载器，覆盖常见文件格式：
 
@@ -2079,43 +2081,43 @@ LangChain 提供了数十种文档加载器，覆盖常见文件格式：
 | CSVLoader                  | CSV 文件      | langchain-community                  |
 | UnstructuredMarkdownLoader | Markdown 文件 | langchain-community + unstructured   |
 
-\# 加载文本文件（内置，无需额外安装）
+    # 加载文本文件（内置，无需额外安装）
 **from** langchain_community.document_loaders **import** TextLoader
 
 loader = TextLoader("knowledge.txt", encoding="utf-8")
 docs = loader.load()
 
-\# 加载网页
-\# pip install langchain-community beautifulsoup4
+    # 加载网页
+    # pip install langchain-community beautifulsoup4
 **from** langchain_community.document_loaders **import** WebBaseLoader
 
 loader = WebBaseLoader("https://www.runoob.com/python/python-tutorial.html")
 docs = loader.load()
 
-## Text Splitter——文档切分
+### Text Splitter——文档切分
 
 文档通常太长，需要切分成小块（chunk）才能有效检索。切分策略直接影响 RAG 效果：
 
-## 实例
+### 实例
 
 **from** langchain_text_splitters **import** RecursiveCharacterTextSplitter
 
-\# 创建切分器
+    # 创建切分器
 text_splitter = RecursiveCharacterTextSplitter(
   chunk_size=500,     # 每块最多 500 个字符
   chunk_overlap=50,    # 块之间重叠 50 个字符
   separators=["**\n****\n**", "**\n**", "。", "！", "？", "；", "，", " ", ""],
-  \# 优先按段落分割，然后是句子，最后是字符
+  # 优先按段落分割，然后是句子，最后是字符
 )
 
-\# 切分文档
+    # 切分文档
 chunks = text_splitter.split_text(long_text)
 
 > chunk_overlap 很重要。如果块之间没有重叠，一个完整的句子可能被切成两半，导致检索时遗漏关键信息。50-100 字符的重叠是常见的设置。
 
 ------
 
-## 切分参数设置指南
+### 切分参数设置指南
 
 | 场景        | chunk_size | chunk_overlap | 原因                   |
 | :---------- | :--------- | :------------ | :--------------------- |
@@ -2126,13 +2128,13 @@ chunks = text_splitter.split_text(long_text)
 
 ------
 
-## 完整流程：加载 → 切分 → 向量化
+### 完整流程：加载 → 切分 → 向量化
 
-\# 流程 1：加载
-\# loader = TextLoader("runoob_knowledge.txt", encoding="utf-8")
-\# docs = loader.load()
+    # 流程 1：加载
+    # loader = TextLoader("runoob_knowledge.txt", encoding="utf-8")
+    # docs = loader.load()
 
-\# 为演示直接使用示例文本
+    # 为演示直接使用示例文本
 docs = [
   "菜鸟教程（RUNOOB）是一个免费的编程学习网站。",
   "网站提供 Python、Java、HTML 等多种编程语言的教程。",
@@ -2141,14 +2143,14 @@ docs = [
   "菜鸟教程的所有基础教程都是免费的。",
 ]
 
-\# 流程 2：切分
+    # 流程 2：切分
 text_splitter = RecursiveCharacterTextSplitter(
   chunk_size=100,
   chunk_overlap=20,
 )
 chunks = text_splitter.create_documents(docs)
 
-\# 流程 3：向量化存储
+    # 流程 3：向量化存储
 embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 vector_store = Chroma.from_documents(
   documents=chunks,
@@ -2158,12 +2160,12 @@ vector_store = Chroma.from_documents(
 
 **print**(f"已建立索引：{len(chunks)} 个文档块")
 
-\# 流程 4：检索
+    # 流程 4：检索
 results = vector_store.similarity_search("Python 教程有多少章？", k=2)
 **for** doc **in** results:
   **print**(f"检索结果: {doc.page_content}")
 
-# LangChain 构建 RAG Agent
+## LangChain 构建 RAG Agent
 
 前两篇我们准备了向量存储和检索器。
 
@@ -2171,7 +2173,7 @@ results = vector_store.similarity_search("Python 教程有多少章？", k=2)
 
 ------
 
-## 创建 Retriever 工具
+### 创建 Retriever 工具
 
 将检索器包装成一个工具，Agent 就能在需要时自动搜索知识库。
 
@@ -2191,7 +2193,7 @@ embeddings = OpenAIEmbeddings(
 )
 ```
 
-## 实例（OpenAI）
+### 实例（OpenAI）
 
 **import** os
 **from** dotenv **import** load_dotenv
@@ -2205,9 +2207,9 @@ load_dotenv()
 **from** langchain_chroma **import** Chroma
 **from** langchain_text_splitters **import** RecursiveCharacterTextSplitter
 
-\# ----- 步骤 1：准备知识库 -----
+    # ----- 步骤 1：准备知识库 -----
 
-\# 模拟菜鸟教程 RUNOOB 的知识文档
+    # 模拟菜鸟教程 RUNOOB 的知识文档
 knowledge_docs = [
   "菜鸟教程（RUNOOB）创立于 2013 年，是一个完全免费的编程学习平台。",
   "平台已上线 300+ 套教程，涵盖前端、后端、数据库、移动开发等领域。",
@@ -2219,13 +2221,13 @@ knowledge_docs = [
   "菜鸟教程的会员服务提供视频课程、项目实战、一对一答疑等增值服务。",
 ]
 
-\# 切分
+    # 切分
 text_splitter = RecursiveCharacterTextSplitter(
   chunk_size=200, chunk_overlap=30
 )
 chunks = text_splitter.create_documents(knowledge_docs)
 
-\# 向量化存储 -- 这里可以修改为阿里百炼的，如果没有 OpenAI 的 key
+    # 向量化存储 -- 这里可以修改为阿里百炼的，如果没有 OpenAI 的 key
 embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 
 
@@ -2235,7 +2237,7 @@ vector_store = Chroma.from_documents(
 )
 retriever = vector_store.as_retriever(search_kwargs={"k": 3})
 
-\# ----- 步骤 2：创建检索工具 -----
+    # ----- 步骤 2：创建检索工具 -----
 
 @tool
 **def** search_knowledge_base(query: str) -> str:
@@ -2258,7 +2260,7 @@ retriever = vector_store.as_retriever(search_kwargs={"k": 3})
   **return** "**\n****\n**".join(results)
 
 
-\# ----- 步骤 3：创建 RAG Agent -----
+    # ----- 步骤 3：创建 RAG Agent -----
 
 model = init_chat_model("deepseek:deepseek-v4-flash", temperature=0)
 agent = create_agent(
@@ -2266,7 +2268,7 @@ agent = create_agent(
   tools=[search_knowledge_base],
   system_prompt="""你是菜鸟教程 RUNOOB 的智能客服助手。
 
-\## 规则
+## 规则
 
 1. 当用户询问关于菜鸟教程的具体信息时，必须使用 search_knowledge_base 工具查询
 2. 基于检索到的信息回答，不要编造知识库中没有的内容
@@ -2275,7 +2277,7 @@ agent = create_agent(
 
 )
 
-\# ----- 步骤 4：测试 -----
+    # ----- 步骤 4：测试 -----
 
 questions = [
   "菜鸟教程是什么时候创立的？",
@@ -2291,7 +2293,7 @@ questions = [
 
 
 
-## RAG Agent 的执行流程
+### RAG Agent 的执行流程
 
 对于上面的第三个问题"菜鸟教程一共有多少套教程？"，Agent 的执行流程是：
 
@@ -2301,7 +2303,7 @@ questions = [
 4. 将检索结果返回给模型
 5. 模型基于检索结果生成准确回答
 
-## 添加引用来源
+### 添加引用来源
 
 专业的 RAG 系统通常会附带引用来源，让用户知道信息来自哪里
 
@@ -2327,19 +2329,19 @@ def search_with_sources(query: str) -> str:
     return "\n\n".join(results)
 
 
-# 如需在文档中保留来源信息，可在创建时添加元数据
+## 如需在文档中保留来源信息，可在创建时添加元数据
 doc_with_meta = Document(
     page_content="Python3 基础教程共 30 章...",
     metadata={"source": "Python3 基础教程-课程介绍", "url": "https://www.runoob.com/python3/"}
 )
 
-## 向量存储的持久化
+### 向量存储的持久化
 
 在实际项目中，你不会每次都重建向量索引。Chroma 支持持久化到本地：
 
-## 实例
+### 实例
 
-\# 创建持久化向量存储（首次运行）
+    # 创建持久化向量存储（首次运行）
 embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 vector_store = Chroma.from_documents(
   documents=chunks,
@@ -2347,24 +2349,24 @@ vector_store = Chroma.from_documents(
   persist_directory="./runoob_vector_db", # 持久化目录
 )
 
-\# 后续运行直接加载
+    # 后续运行直接加载
 loaded_store = Chroma(
   persist_directory="./runoob_vector_db",
   embedding_function=embeddings,
 )
 retriever = loaded_store.as_retriever()
 
-\# 无需重新计算向量！
+    # 无需重新计算向量！
 
 > 向量存储的持久化可以大幅提升启动速度。在文档量大的情况下（成千上万篇），重新计算所有向量的 Embedding 可能花费数十分钟。持久化后只需加载即可。
 
-# LangChain 智能客服机器人
+## LangChain 智能客服机器人
 
 本篇将前面学到的知识整合起来，构建一个完整的智能客服机器人。它能够查询知识库、处理订单、在必要时转接人工。
 
 ------
 
-## 需求分析
+### 需求分析
 
 | 功能         | 实现方式                               |
 | :----------- | :------------------------------------- |
@@ -2376,7 +2378,7 @@ retriever = loaded_store.as_retriever()
 
 ------
 
-## 环境搭建
+### 环境搭建
 
 正式写代码之前，先把运行环境准备好。跟着下面几步操作，几分钟就能搭好。
 
@@ -2456,15 +2458,15 @@ DASHSCOPE_API_KEY=sk-你的百炼密钥
 
 新建一个 `check_install.py` 文件，运行下面的脚本，检查依赖和密钥是否都配置正确：
 
-## 实例
+### 实例
 
-\# 文件路径：check_install.py
+    # 文件路径：check_install.py
 **import** os
 **from** dotenv **import** load_dotenv
 
 load_dotenv()
 
-\# 检查依赖包能否正常导入
+    # 检查依赖包能否正常导入
 **import** langchain
 **import** langchain_deepseek
 **import** langchain_openai
@@ -2474,9 +2476,9 @@ load_dotenv()
 
 **print**(f"langchain 版本: {langchain.__version__}")
 
-\# 检查密钥是否已配置
+    # 检查密钥是否已配置
 **assert** os.getenv("DEEPSEEK_API_KEY"), "未检测到 DEEPSEEK_API_KEY，请检查 .env 文件"
-\# assert os.getenv("OPENAI_API_KEY"), "未检测到 OPENAI_API_KEY，请检查 .env 文件"
+    # assert os.getenv("OPENAI_API_KEY"), "未检测到 OPENAI_API_KEY，请检查 .env 文件"
 **assert** os.getenv("DASHSCOPE_API_KEY"), "未检测到 DASHSCOPE_API_KEY，请检查 .env 文件"
 
 **print**("环境配置成功~可以开始写客服机器人了！")
@@ -2498,14 +2500,14 @@ langchain 版本: 1.3.0
 
 ------
 
-## 完整代码
+### 完整代码
 
 环境搭建完成后（依赖安装、.env 配置见上一节"环境搭建"），就可以编写完整的客服机器人代码了：
 
-## 实例
+### 实例
 
-\# 文件路径：customer_service_bot.py
-\# 依赖安装、.env 配置见上一节"环境搭建"
+    # 文件路径：customer_service_bot.py
+    # 依赖安装、.env 配置见上一节"环境搭建"
 **from** dotenv **import** load_dotenv
 load_dotenv()
 
@@ -2524,7 +2526,7 @@ load_dotenv()
 **from** langgraph.types **import** interrupt, Command
 
 
-\# ========== 1. 准备知识库 ==========
+    # ========== 1. 准备知识库 ==========
 
 knowledge_base = [
   "菜鸟教程 RUNOOB 创立于 2013 年，是国内领先的免费编程学习平台。",
@@ -2536,19 +2538,19 @@ knowledge_base = [
   "客服工作时间：周一至周五 9:00-18:00，周末 10:00-16:00。",
 ]
 
-\# 使用阿里云百炼（DashScope）的通义千问 Embedding 服务
-\# 百炼的 Embedding 接口兼容 OpenAI 接口规范，所以直接用 langchain-openai
-\# 的 OpenAIEmbeddings，把 base_url 指向百炼的兼容端点即可，
-\# 不需要再装 langchain-community / dashscope（该包已停止维护）。
-\# text-embedding-v4 是目前推荐的通用向量模型，默认输出 1024 维向量。
-\#
-\# 两个关键参数不能少：
-\# - check_embedding_ctx_length=False：OpenAIEmbeddings 默认会用 tiktoken
-\#  把文本预先编码成 token id 数组再发送（OpenAI 官方接口认这个格式），
-\#  但百炼的兼容接口只接受原始字符串，不关掉这个选项会报
-\#  "contents is neither str nor list of str" 错误。
-\# - chunk_size=10：百炼 Embedding 接口单次请求最多接受 10 条文本，
-\#  OpenAIEmbeddings 默认一次打包 1000 条，知识库稍大就会超限报错。
+    # 使用阿里云百炼（DashScope）的通义千问 Embedding 服务
+    # 百炼的 Embedding 接口兼容 OpenAI 接口规范，所以直接用 langchain-openai
+    # 的 OpenAIEmbeddings，把 base_url 指向百炼的兼容端点即可，
+    # 不需要再装 langchain-community / dashscope（该包已停止维护）。
+    # text-embedding-v4 是目前推荐的通用向量模型，默认输出 1024 维向量。
+    #
+    # 两个关键参数不能少：
+    # - check_embedding_ctx_length=False：OpenAIEmbeddings 默认会用 tiktoken
+    #  把文本预先编码成 token id 数组再发送（OpenAI 官方接口认这个格式），
+    #  但百炼的兼容接口只接受原始字符串，不关掉这个选项会报
+    #  "contents is neither str nor list of str" 错误。
+    # - chunk_size=10：百炼 Embedding 接口单次请求最多接受 10 条文本，
+    #  OpenAIEmbeddings 默认一次打包 1000 条，知识库稍大就会超限报错。
 embeddings = OpenAIEmbeddings(
   model="text-embedding-v4",
   api_key=os.getenv("DASHSCOPE_API_KEY"),
@@ -2562,7 +2564,7 @@ vector_store = Chroma.from_documents(chunks, embeddings)
 retriever = vector_store.as_retriever(search_kwargs={"k": 3})
 
 
-\# ========== 2. 定义工具 ==========
+    # ========== 2. 定义工具 ==========
 
 @tool
 **def** search_kb(query: str) -> str:
@@ -2577,7 +2579,7 @@ retriever = vector_store.as_retriever(search_kwargs={"k": 3})
   **return** "**\n**".join(f"- {doc.page_content}" **for** doc **in** docs)
 
 
-\# 模拟订单数据库
+    # 模拟订单数据库
 orders_db = {
   "ORD-2024-001": {"user": "小明", "item": "VIP 年费会员",
            "amount": 799, "status": "已完成", "date": "2024-01-15"},
@@ -2620,7 +2622,7 @@ orders_db = {
   **return** "转接已取消，我继续为您服务。"
 
 
-\# ========== 3. 定义 Middleware ==========
+    # ========== 3. 定义 Middleware ==========
 
 @before_model
 **def** content_guard(state, runtime):
@@ -2649,9 +2651,9 @@ orders_db = {
   **if** last.type == "ai" **and** last.content **and** **not** (
     hasattr(last, 'tool_calls') **and** last.tool_calls
   ):
-    \# 关键：复用 last.id，让 add_messages reducer 原地替换该消息，
-    \# 而不是把它当成一条新消息追加到历史里（否则历史会越滚越大，
-    \# 每轮多出一条"无签名版"和一条"带签名版"）
+    # 关键：复用 last.id，让 add_messages reducer 原地替换该消息，
+    # 而不是把它当成一条新消息追加到历史里（否则历史会越滚越大，
+    # 每轮多出一条"无签名版"和一条"带签名版"）
     **return** {"messages": [AIMessage(
       id=last.id,
       content=last.content
@@ -2660,12 +2662,12 @@ orders_db = {
   **return** None
 
 
-\# ========== 4. 创建 Agent ==========
+    # ========== 4. 创建 Agent ==========
 
-\# SqliteSaver.from_conn_string() 返回的是上下文管理器，只适合"用完即关"的
-\# 一次性脚本。客服机器人需要在多次 chat() 调用之间保持同一个数据库连接，
-\# 所以这里自己建立连接后传给 SqliteSaver 构造函数。
-\# check_same_thread=False 是因为 Web 框架通常会跨线程调用同一个连接。
+    # SqliteSaver.from_conn_string() 返回的是上下文管理器，只适合"用完即关"的
+    # 一次性脚本。客服机器人需要在多次 chat() 调用之间保持同一个数据库连接，
+    # 所以这里自己建立连接后传给 SqliteSaver 构造函数。
+    # check_same_thread=False 是因为 Web 框架通常会跨线程调用同一个连接。
 conn = sqlite3.connect("customer_service.db", check_same_thread=False)
 checkpointer = SqliteSaver(conn)
 
@@ -2678,7 +2680,7 @@ agent = create_agent(
   checkpointer=checkpointer,
   system_prompt="""你是菜鸟教程 RUNOOB 的智能客服"小菜"。
 
-\## 你的职责
+## 你的职责
 
 1. 热情接待每一位用户，用"您"称呼
 2. 关于平台信息、课程内容、政策等问题，使用 search_kb 查询
@@ -2686,26 +2688,26 @@ agent = create_agent(
 4. 遇到无法解决的问题，使用 transfer_to_human 转接人工
 
 
-\## 行为准则
+## 行为准则
 \- 回答简洁，每次 2-3 句话
 \- 不知道的就查询知识库，查不到就诚实告知
 \- 保持友好亲切的语气""",
 )
 
 
-\# ========== 5. 对话接口 ==========
+    # ========== 5. 对话接口 ==========
 
 **def** chat(thread_id: str, message: str) -> str:
   """处理用户消息并返回回复"""
   config = {"configurable": {"thread_id": thread_id}}
 
-  \# 运行 Agent
+  # 运行 Agent
   result = agent.invoke(
     {"messages": [HumanMessage(content=message)]},
     config=config,
   )
 
-  \# 检查是否需要转接（HITL）
+  # 检查是否需要转接（HITL）
   state = agent.get_state(config)
   **if** state.tasks **and** state.tasks[0].interrupts:
     interrupt_info = state.tasks[0].interrupts[0].value
@@ -2732,7 +2734,7 @@ agent = create_agent(
   **return** result["messages"][-1].content
 
 
-\# ========== 6. 测试 ==========
+    # ========== 6. 测试 ==========
 
 **if** __name__ == "__main__":
   user_id = "user_xiaoming"
@@ -2811,7 +2813,7 @@ agent = create_agent(
 
 ------
 
-## 项目总结
+### 项目总结
 
 这个客服机器人整合了以下 LangChain 特性：
 
@@ -2823,13 +2825,13 @@ agent = create_agent(
 | Middleware   | before_model 内容过滤 + after_model 签名追加（复用消息 id 原地替换） |
 | HITL         | interrupt() 暂停执行 + Command(resume=...) 审批后恢复，实现完整的人工转接闭环 |
 
-# LangChain 个人知识库问答系统
+## LangChain 个人知识库问答系统
 
 本篇构建一个能加载 Markdown 文件、PDF 文档，并基于这些内容进行问答的个人知识库系统。
 
 ------
 
-## 系统设计
+### 系统设计
 
 - **文档加载**：支持 Markdown、TXT、PDF 多种格式
 - **向量检索**：Chroma 持久化存储，支持增量更新
@@ -2838,14 +2840,14 @@ agent = create_agent(
 
 ------
 
-## 完整代码
+### 完整代码
 
 运行前需要在 `.env` 文件中配置 `DEEPSEEK_API_KEY`（Chat 模型）和 `DASHSCOPE_API_KEY`（阿里云百炼，用于知识库文本向量化），具体申请方式和常见问题排查见[《LangChain 智能客服机器人》](https://www.runoob.com/langchain/langchain-project-customer-service.html)一节。
 
-## 实例
+### 实例
 
-\# 文件路径：knowledge_qa.py
-\# pip install langchain langchain-deepseek langchain-openai langchain-community langchain-chroma chromadb pypdf
+    # 文件路径：knowledge_qa.py
+    # pip install langchain langchain-deepseek langchain-openai langchain-community langchain-chroma chromadb pypdf
 **from** dotenv **import** load_dotenv
 load_dotenv()
 
@@ -2867,65 +2869,65 @@ load_dotenv()
   **def** __init__(self, persist_dir: str = "./my_knowledge_db"):
     self.persist_dir = persist_dir
 
-​    \# 阿里云百炼的 Embedding 接口兼容 OpenAI 规范，用 langchain-openai
-​    \# 的 OpenAIEmbeddings 调用即可，不需要装 langchain-community 里
-​    \# 已停止维护的 DashScopeEmbeddings。
-​    \# check_embedding_ctx_length=False：关掉 tiktoken 预分词，直接发原始文本
-​    \# （百炼接口不接受 token id 数组）。
-​    \# chunk_size=10：百炼 Embedding 接口单次请求最多接受 10 条文本。
-​    self.embeddings = OpenAIEmbeddings(
-​      model="text-embedding-v4",
-​      api_key=os.getenv("DASHSCOPE_API_KEY"),
-​      base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-​      check_embedding_ctx_length=False,
-​      chunk_size=10,
-​    )
-​    self.text_splitter = RecursiveCharacterTextSplitter(
-​      chunk_size=500, chunk_overlap=50,
-​      separators=["**\n****\n**", "**\n**", "。", "！", "？", ". ", "! ", "? ", " "],
-​    )
-​    self.vector_store = None
-​    self._load_or_create()
+    # 阿里云百炼的 Embedding 接口兼容 OpenAI 规范，用 langchain-openai
+    # 的 OpenAIEmbeddings 调用即可，不需要装 langchain-community 里
+    # 已停止维护的 DashScopeEmbeddings。
+    # check_embedding_ctx_length=False：关掉 tiktoken 预分词，直接发原始文本
+    # （百炼接口不接受 token id 数组）。
+    # chunk_size=10：百炼 Embedding 接口单次请求最多接受 10 条文本。
+    self.embeddings = OpenAIEmbeddings(
+      model="text-embedding-v4",
+      api_key=os.getenv("DASHSCOPE_API_KEY"),
+      base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+      check_embedding_ctx_length=False,
+      chunk_size=10,
+    )
+    self.text_splitter = RecursiveCharacterTextSplitter(
+      chunk_size=500, chunk_overlap=50,
+      separators=["**\n****\n**", "**\n**", "。", "！", "？", ". ", "! ", "? ", " "],
+    )
+    self.vector_store = None
+    self._load_or_create()
 
   **def** _load_or_create(self):
     """加载已有向量库或创建新的（Chroma 用同一套参数即可，
     目录是否已存在只影响提示信息，不影响创建逻辑）"""
     is_existing = os.path.exists(self.persist_dir) **and** os.listdir(self.persist_dir)
 
-​    self.vector_store = Chroma(
-​      embedding_function=self.embeddings,
-​      persist_directory=self.persist_dir,
-​    )
+    self.vector_store = Chroma(
+      embedding_function=self.embeddings,
+      persist_directory=self.persist_dir,
+    )
 
-​    **if** is_existing:
-​      **print**(f"已加载向量库：{self.vector_store._collection.count()} 个文档块")
-​    **else**:
-​      **print**("已创建新的向量库")
+    **if** is_existing:
+      **print**(f"已加载向量库：{self.vector_store._collection.count()} 个文档块")
+    **else**:
+      **print**("已创建新的向量库")
 
   **def** add_file(self, file_path: str) -> int:
     """添加文件到知识库，返回添加的文档块数
 
-​    根据文件扩展名自动选择合适的 Loader：
-​    \- .pdf 用 PyPDFLoader（依赖 pypdf 库解析 PDF，按页返回多个 Document）
-​    \- 其余（.md、.txt 等纯文本文件）用 TextLoader 按原始文本读取
-​    """
-​    suffix = Path(file_path).suffix.lower()
-​    **if** suffix == ".pdf":
-​      loader = PyPDFLoader(file_path)
-​    **else**:
-​      loader = TextLoader(file_path, encoding="utf-8")
+    根据文件扩展名自动选择合适的 Loader：
+    \- .pdf 用 PyPDFLoader（依赖 pypdf 库解析 PDF，按页返回多个 Document）
+    \- 其余（.md、.txt 等纯文本文件）用 TextLoader 按原始文本读取
+    """
+    suffix = Path(file_path).suffix.lower()
+    **if** suffix == ".pdf":
+      loader = PyPDFLoader(file_path)
+    **else**:
+      loader = TextLoader(file_path, encoding="utf-8")
 
-​    docs = loader.load()
+    docs = loader.load()
 
-​    \# 统一补充文件名来源；PyPDFLoader 加载出的每个 Document 还会自带
-​    \# page 字段（第几页），检索时可以一并用来定位片段位置
-​    **for** doc **in** docs:
-​      doc.metadata["source"] = Path(file_path).name
+    # 统一补充文件名来源；PyPDFLoader 加载出的每个 Document 还会自带
+    # page 字段（第几页），检索时可以一并用来定位片段位置
+    **for** doc **in** docs:
+      doc.metadata["source"] = Path(file_path).name
 
-​    chunks = self.text_splitter.split_documents(docs)
-​    self.vector_store.add_documents(chunks)
-​    **print**(f"已添加 {Path(file_path).name}：{len(chunks)} 个文档块")
-​    **return** len(chunks)
+    chunks = self.text_splitter.split_documents(docs)
+    self.vector_store.add_documents(chunks)
+    **print**(f"已添加 {Path(file_path).name}：{len(chunks)} 个文档块")
+    **return** len(chunks)
 
   **def** add_text(self, text: str, source: str = "手动添加") -> int:
     """直接添加文本到知识库"""
@@ -2947,13 +2949,13 @@ load_dotenv()
 
 继续 Agent 部分：
 
-## 实例
+### 实例
 
-\# ========== 创建知识库并添加示例数据 ==========
+    # ========== 创建知识库并添加示例数据 ==========
 
 kb = KnowledgeBase("./my_knowledge_db")
 
-\# 添加一些示例知识
+    # 添加一些示例知识
 kb.add_text(
   "菜鸟教程 RUNOOB 的 Python3 基础教程包含以下章节："
   "1. Python 简介与环境搭建 2. 基本数据类型 3. 运算符与表达式 "
@@ -2978,12 +2980,12 @@ kb.add_text(
   source="在线编程环境说明"
 )
 
-\# 也可以加载本地文件，PDF 和 Markdown/TXT 都会自动识别：
-\# kb.add_file("./docs/产品手册.pdf")
-\# kb.add_file("./docs/常见问题.md")
+    # 也可以加载本地文件，PDF 和 Markdown/TXT 都会自动识别：
+    # kb.add_file("./docs/产品手册.pdf")
+    # kb.add_file("./docs/常见问题.md")
 
 
-\# ========== 创建 RAG Agent ==========
+    # ========== 创建 RAG Agent ==========
 
 @tool
 **def** search_knowledge(query: str) -> str:
@@ -3013,7 +3015,7 @@ agent = create_agent(
   tools=[search_knowledge],
   system_prompt="""你是个人知识库助手。
 
-\## 规则
+## 规则
 
 1. 所有问题必须先用 search_knowledge 工具检索知识库
 2. 回答时注明信息来源（文档名称，如果是 PDF 还要注明页码）
@@ -3023,7 +3025,7 @@ agent = create_agent(
 )
 
 
-\# ========== 测试：非流式，同时看检索到的内容 ==========
+    # ========== 测试：非流式，同时看检索到的内容 ==========
 
 **def** ask(question: str):
   """提问，同时打印检索到的原始片段和最终回答，方便调试"""
@@ -3035,7 +3037,7 @@ agent = create_agent(
     "messages": [HumanMessage(content=question)]
   })
 
-  \# 显示检索到的内容
+  # 显示检索到的内容
   **for** msg **in** result["messages"]:
     **if** msg.type == "tool":
       **print**(f"**\n**[检索到的内容]")
@@ -3045,7 +3047,7 @@ agent = create_agent(
   **print**(result["messages"][-1].content)
 
 
-\# ========== 测试：流式，对应系统设计里的"流式输出" ==========
+    # ========== 测试：流式，对应系统设计里的"流式输出" ==========
 
 **def** ask_stream(question: str):
   """提问并逐 Token 流式打印回答，实现打字机效果"""
@@ -3058,8 +3060,8 @@ agent = create_agent(
     {"messages": [HumanMessage(content=question)]},
     stream_mode="messages",
   ):
-    \# metadata["langgraph_node"] == "model" 表示这个 chunk 来自模型生成
-    \# 最终回答的节点，过滤掉工具调用等其他类型的 chunk
+    # metadata["langgraph_node"] == "model" 表示这个 chunk 来自模型生成
+    # 最终回答的节点，过滤掉工具调用等其他类型的 chunk
     **if** metadata.get("langgraph_node") == "model" **and** chunk.content:
       **print**(chunk.content, end="", flush=True)
   **print**()
@@ -3110,13 +3112,13 @@ Q: 菜鸟教程的在线编程环境支持哪些功能？
 
 > 最后一个问题用的是 `ask_stream()`，实际运行时"[回答]"后面的文字会一个字一个（或几个字符一批）地陆续打印出来，就像打字机效果；上面为了方便展示，直接贴出了打印完成后的最终文本。
 
-# LangChain 多工具个人助手
+## LangChain 多工具个人助手
 
 本篇构建一个集天气查询、日程管理、邮件发送于一体的个人助手 Agent，展示多工具协作和结构化输出的完整用法。
 
 ------
 
-## 系统设计
+### 系统设计
 
 - 三个工具：天气查询、日程管理、邮件发送
 - 结构化输出：日程汇总格式化为 Markdown
@@ -3125,7 +3127,7 @@ Q: 菜鸟教程的在线编程环境支持哪些功能？
 
 ------
 
-## 完整代码
+### 完整代码
 
 运行前安装依赖，并在 `.env` 里配置好 `DEEPSEEK_API_KEY`：
 
@@ -3133,9 +3135,9 @@ Q: 菜鸟教程的在线编程环境支持哪些功能？
 pip install langchain langchain-deepseek langgraph-checkpoint-sqlite python-dotenv
 ```
 
-## 实例
+### 实例
 
-\# 文件路径：personal_assistant.py
+    # 文件路径：personal_assistant.py
 **from** dotenv **import** load_dotenv
 load_dotenv()
 
@@ -3151,7 +3153,7 @@ load_dotenv()
 **from** langgraph.checkpoint.sqlite **import** SqliteSaver
 
 
-\# ========== 1. 模拟数据 ==========
+    # ========== 1. 模拟数据 ==========
 
 calendar_events = [
   {"id": 1, "title": "Python 学习", "date": "2024-03-25",
@@ -3169,7 +3171,7 @@ weather_db = {
 }
 
 
-\# ========== 2. 定义工具 ==========
+    # ========== 2. 定义工具 ==========
 
 @tool
 **def** get_weather(city: str) -> str:
@@ -3200,8 +3202,8 @@ weather_db = {
     **return** f"{date} 没有日程安排。"
 
   events.sort(key=**lambda** e: e["time"])
-  \# 这里必须直接写 emoji 字符，不能写成 &#x1f4c5; 这种 HTML 实体——
-  \# 这段是 Python 字符串，会被原样打印出来，不会被浏览器解析成图形
+  # 这里必须直接写 emoji 字符，不能写成 &#x1f4c5; 这种 HTML 实体——
+  # 这段是 Python 字符串，会被原样打印出来，不会被浏览器解析成图形
   lines = [f"&#x1f4c5; {date} 日程安排："]
   **for** e **in** events:
     lines.append(f"  - {e['time']} {e['title']}（{e['duration']}）")
@@ -3217,12 +3219,12 @@ weather_db = {
     subject: 邮件主题
     body: 邮件正文
   """
-  \# 模拟发送
+  # 模拟发送
   email_id = f"MSG-{datetime.now().strftime('%Y%m%d%H%M%S')}"
   **return** f"邮件已发送！收件人：{to}，主题：{subject}，邮件ID：{email_id}"
 
 
-\# ========== 3. 结构化输出模型 ==========
+    # ========== 3. 结构化输出模型 ==========
 
 **class** DailySummary(BaseModel):
   """每日摘要"""
@@ -3252,7 +3254,7 @@ weather_db = {
   **return** "**\n**".join(lines)
 
 
-\# ========== 4. 定义 Middleware ==========
+    # ========== 4. 定义 Middleware ==========
 
 @dynamic_prompt
 **def** inject_date_context(request) -> str:
@@ -3262,29 +3264,29 @@ weather_db = {
 
 1. before_model 返回的消息更新走 add_messages reducer，reducer 只按
 
-​    "新消息追加到末尾"处理，不认返回列表里的位置，insert(-1, ...)
-​    想插到用户消息前面的意图其实并不生效；
+    "新消息追加到末尾"处理，不认返回列表里的位置，insert(-1, ...)
+    想插到用户消息前面的意图其实并不生效；
 
 2. before_model 在多轮工具调用循环里会反复触发，容易把这条消息插进
 
-​    AIMessage(tool_calls=...) 和它对应的 ToolMessage 之间，
-​    打乱严格的消息顺序要求。
+    AIMessage(tool_calls=...) 和它对应的 ToolMessage 之间，
+    打乱严格的消息顺序要求。
   改用 @dynamic_prompt 直接重写系统提示词字符串，每次模型调用都会
   重新计算一遍，不触碰 messages 列表，没有累积或错位的风险。
   """
   now = datetime.now()
   weekday = ["一", "二", "三", "四", "五", "六", "日"][now.weekday()]
   date_hint = (f"**\n****\n**[系统提示] 当前日期是 {now.strftime('%Y年%m月%d日')}，"
-​         f"星期{weekday}。如果用户没有指定日期，默认查询今天。")
+         f"星期{weekday}。如果用户没有指定日期，默认查询今天。")
   **return** request.system_prompt + date_hint
 
 
-\# ========== 5. 创建 Agent ==========
+    # ========== 5. 创建 Agent ==========
 
-\# 用 SqliteSaver 持久化对话，实现系统设计里的"对话记忆"。
-\# 自己建立连接再传给 SqliteSaver 构造函数，而不是用
-\# SqliteSaver.from_conn_string()（那是个只适合 with 语句、
-\# 用完即关的上下文管理器，详见《LangChain 智能客服机器人》一篇）。
+    # 用 SqliteSaver 持久化对话，实现系统设计里的"对话记忆"。
+    # 自己建立连接再传给 SqliteSaver 构造函数，而不是用
+    # SqliteSaver.from_conn_string()（那是个只适合 with 语句、
+    # 用完即关的上下文管理器，详见《LangChain 智能客服机器人》一篇）。
 conn = sqlite3.connect("personal_assistant.db", check_same_thread=False)
 checkpointer = SqliteSaver(conn)
 
@@ -3297,7 +3299,7 @@ agent = create_agent(
   checkpointer=checkpointer,
   system_prompt="""你是个人助手"小助"。你可以查天气、管理日程、发送邮件。
 
-\## 工作方式
+## 工作方式
 
 1. 当用户问"今天怎么样"或类似问题时：
 
@@ -3312,13 +3314,13 @@ agent = create_agent(
 3. 当用户只问天气或只问日程时，只调用对应的工具
 
 
-\## 风格
+## 风格
 \- 语气亲切自然
 \- 优先使用工具获取实时数据，不要编造""",
 )
 
 
-\# ========== 6. 交互函数 ==========
+    # ========== 6. 交互函数 ==========
 
 **def** chat(message: str, thread_id: str = "xiaoming"):
   """与助手对话：
@@ -3340,7 +3342,7 @@ agent = create_agent(
   ):
     final_state = state
     msgs = state.get("messages", [])
-    \# 每多出几条新消息，就说明 Agent 往前推进了一步，实时打印出来
+    # 每多出几条新消息，就说明 Agent 往前推进了一步，实时打印出来
     **for** msg **in** msgs[seen:]:
       **if** msg.type == "ai" **and** getattr(msg, "tool_calls", None):
         **for** call **in** msg.tool_calls:
@@ -3352,11 +3354,11 @@ agent = create_agent(
         **print**(f"&#x1f916; 助手: {msg.content}")
     seen = len(msgs)
 
-  \# 注意：response_format 是在 Agent 级别配置的，每一次调用（包括发邮件、
-  \# 追问这类和"日程摘要"无关的请求）都会强制尝试生成一份 DailySummary，
-  \# 这是全局 response_format 的已知局限。真要做成多意图助手，更好的做法是
-  \# 把"生成每日摘要"做成一个单独的工具，让 Agent 自己判断要不要调用，
-  \# 而不是给整个 Agent 挂一个一直生效的输出 schema。
+  # 注意：response_format 是在 Agent 级别配置的，每一次调用（包括发邮件、
+  # 追问这类和"日程摘要"无关的请求）都会强制尝试生成一份 DailySummary，
+  # 这是全局 response_format 的已知局限。真要做成多意图助手，更好的做法是
+  # 把"生成每日摘要"做成一个单独的工具，让 Agent 自己判断要不要调用，
+  # 而不是给整个 Agent 挂一个一直生效的输出 schema。
   **if** "structured_response" **in** final_state:
     summary = final_state["structured_response"]
     **print**("**\n**--- 结构化摘要（Markdown） ---")
@@ -3365,13 +3367,13 @@ agent = create_agent(
   **return** final_state
 
 
-\# ========== 7. 测试 ==========
+    # ========== 7. 测试 ==========
 
 **if** __name__ == "__main__":
   chat("杭州今天天气怎么样？看看我的日程，然后给我一个今日总结")
   chat("帮我发一封邮件给 team@runoob.com，主题是'今日总结'，内容是今天日程已确认")
-  \# 第三轮不带任何新信息，纯粹考验 Agent 是否记得上一轮对话——
-  \# 因为传的是同一个 thread_id，checkpointer 会把完整历史带回来
+  # 第三轮不带任何新信息，纯粹考验 Agent 是否记得上一轮对话——
+  # 因为传的是同一个 thread_id，checkpointer 会把完整历史带回来
   chat("我刚才让你发的那封邮件，主题是什么来着？")
 
 运行结果：
@@ -3421,7 +3423,7 @@ agent = create_agent(
 
 ------
 
-## 项目总结
+### 项目总结
 
 这个个人助手展示了：
 
@@ -3436,13 +3438,13 @@ agent = create_agent(
 
 
 
-# LangChain LangSmith -- 可观测性
+## LangChain LangSmith -- 可观测性
 
 LangSmith 是 LangChain 官方的可观测性平台，帮助你追踪 Agent 执行过程、监控性能、调试问题。
 
 ------
 
-## LangSmith 是什么
+### LangSmith 是什么
 
 当 Agent 在后台运行时，你看不到它内部发生了什么——调用了哪些模型、执行了哪些工具、每一步消耗了多少 Token。LangSmith 解决了这个"黑盒"问题。
 
@@ -3455,7 +3457,7 @@ LangSmith 是 LangChain 官方的可观测性平台，帮助你追踪 Agent 执�
 
 ------
 
-## 快速开始
+### 快速开始
 
 ### 注册与安装
 
@@ -3465,7 +3467,7 @@ $ pip install langsmith
 
 在 [smith.langchain.com](https://smith.langchain.com/) 注册账号，获取 API Key，然后在 .env 中配置：
 
-## 实例
+### 实例
 
 *# .env 文件*
 LANGCHAIN_TRACING_V2=**true**
@@ -3474,7 +3476,7 @@ LANGCHAIN_PROJECT=my-agent-project
 
 ### 自动追踪
 
-## 实例
+### 实例
 
 **from** dotenv **import** load_dotenv
 load_dotenv() # LangSmith 配置会自动加载
@@ -3484,8 +3486,8 @@ load_dotenv() # LangSmith 配置会自动加载
 **from** langchain.messages **import** HumanMessage
 **from** langchain.tools **import** tool
 
-\# 设置环境变量后，所有 Agent 执行都会自动追踪
-\# 无需额外代码！
+    # 设置环境变量后，所有 Agent 执行都会自动追踪
+    # 无需额外代码！
 
 @tool
 **def** search_course(keyword: str) -> str:
@@ -3499,17 +3501,17 @@ agent = create_agent(
   system_prompt="你是菜鸟教程 RUNOOB 的助手。",
 )
 
-\# 这次执行会被自动记录到 LangSmith
+    # 这次执行会被自动记录到 LangSmith
 result = agent.invoke({
   "messages": [HumanMessage(content="搜索 Python 课程")]
 })
 
-\# 打开 https://smith.langchain.com 查看追踪记录
+    # 打开 https://smith.langchain.com 查看追踪记录
 **print**("已完成，请到 LangSmith 控制台查看追踪详情")
 
 ------
 
-## 查看追踪记录
+### 查看追踪记录
 
 在 LangSmith 控制台中，你可以看到每次 Agent 执行的完整轨迹：
 
@@ -3521,32 +3523,32 @@ result = agent.invoke({
 
 ------
 
-## 手动创建追踪
+### 手动创建追踪
 
-## 实例
+### 实例
 
 **from** langsmith **import** traceable
 
-\# 使用 @traceable 装饰器标记需要追踪的函数
+    # 使用 @traceable 装饰器标记需要追踪的函数
 @traceable
 **def** process_user_query(query: str) -> dict:
   """处理用户查询（此函数会被单独追踪）"""
-  \# 预处理
+  # 预处理
   cleaned = query.strip().lower()
-  \# 调用 Agent
+  # 调用 Agent
   result = agent.invoke({"messages": [HumanMessage(content=cleaned)]})
   **return** {
     "query": cleaned,
     "answer": result["messages"][-1].content,
   }
 
-\# 在 LangSmith 中会看到 process_user_query 作为一个独立步骤
+    # 在 LangSmith 中会看到 process_user_query 作为一个独立步骤
 result = process_user_query("  Python 课程推荐  ")
 **print**(result["answer"])
 
 ------
 
-## 常用配置
+### 常用配置
 
 | 环境变量             | 说明                      | 示例                            |
 | :------------------- | :------------------------ | :------------------------------ |
@@ -3557,13 +3559,13 @@ result = process_user_query("  Python 课程推荐  ")
 
 > 生产环境建议将 LangSmith 的追踪采样率设低一些（避免记录所有请求造成成本过高），只在需要调试时开启完整追踪。
 
-# LangChain 错误处理与调试
+## LangChain 错误处理与调试
 
 Agent 开发中不可避免会遇到各种错误。本篇梳理常见错误类型、调试方法和最佳实践。
 
 ------
 
-## 常见错误类型
+### 常见错误类型
 
 | 错误类型         | 典型原因               | 解决方案                                |
 | :--------------- | :--------------------- | :-------------------------------------- |
@@ -3576,18 +3578,18 @@ Agent 开发中不可避免会遇到各种错误。本篇梳理常见错误类�
 
 ------
 
-## ModelRetryMiddleware——模型调用重试
+### ModelRetryMiddleware——模型调用重试
 
 LangChain 提供了内置的重试中间件：
 
-## 实例
+### 实例
 
 **from** langchain.agents.middleware **import** ModelRetryMiddleware
 **from** langchain.agents **import** create_agent
 **from** langchain.chat_models **import** init_chat_model
 
-\# 内置的模型重试中间件
-\# 自动在模型调用失败时重试
+    # 内置的模型重试中间件
+    # 自动在模型调用失败时重试
 agent = create_agent(
   model=init_chat_model("deepseek:deepseek-v4-flash", timeout=30, max_retries=2),
   middleware=[
@@ -3599,9 +3601,9 @@ agent = create_agent(
   system_prompt="你是菜鸟教程 RUNOOB 的助手。",
 )
 
-## ToolRetryMiddleware——工具调用重试
+### ToolRetryMiddleware——工具调用重试
 
-## 实例
+### 实例
 
 **from** langchain.agents.middleware **import** ToolRetryMiddleware
 
@@ -3620,25 +3622,25 @@ agent = create_agent(
 
 ------
 
-## debug=True——详细日志
+### debug=True——详细日志
 
-## 实例
+### 实例
 
 **from** langchain.agents **import** create_agent
 **from** langchain.chat_models **import** init_chat_model
 **from** langchain.messages **import** HumanMessage
 
-\# 开启 debug 模式，输出详细执行日志
+    # 开启 debug 模式，输出详细执行日志
 agent = create_agent(
   model=init_chat_model("deepseek:deepseek-v4-flash"),
   debug=True, # 开启调试日志
   system_prompt="你是菜鸟教程 RUNOOB 的助手。",
 )
 
-\# 执行时会打印：
-\# - 每个节点的输入状态
-\# - 每个节点的输出状态
-\# - 边（edge）的跳转决策
+    # 执行时会打印：
+    # - 每个节点的输入状态
+    # - 每个节点的输出状态
+    # - 边（edge）的跳转决策
 result = agent.invoke({
   "messages": [HumanMessage(content="你好")]
 })
@@ -3656,16 +3658,16 @@ debug=True 输出的示例：
 
 ------
 
-## stream_mode="debug"——最详细的调试信息
+### stream_mode="debug"——最详细的调试信息
 
-## 实例
+### 实例
 
-\# 通过 stream_mode="debug" 获取最详细的信息
+    # 通过 stream_mode="debug" 获取最详细的信息
 **for** event **in** agent.stream(
   {"messages": [HumanMessage(content="你好")]},
   stream_mode="debug",
 ):
-  \# event 包含：节点名、输入、输出、时间戳、任务信息等
+  # event 包含：节点名、输入、输出、时间戳、任务信息等
   **print**(f"[{event['type']}] {event.get('name', '')}")
   **if** 'input' **in** event:
     **print**(f"  输入: {event['input']}")
@@ -3674,7 +3676,7 @@ debug=True 输出的示例：
 
 ------
 
-## 常见问题排查
+### 常见问题排查
 
 ### 问题 1：模型一直调用工具不停止
 
@@ -3700,13 +3702,13 @@ debug=True 输出的示例：
 - 是否每次使用了相同的 thread_id？
 - 如果使用 SqliteSaver，数据库文件是否存在且可写？
 
-# LangChain Chat Model API
+## LangChain Chat Model API
 
 本文档列出 init_chat_model() 和 BaseChatModel 的完整 API 参考。
 
 ------
 
-## init_chat_model() 完整参数
+### init_chat_model() 完整参数
 
 | 参数                | 类型                  | 默认值     | 说明                                                       |
 | :------------------ | :-------------------- | :--------- | :--------------------------------------------------------- |
@@ -3725,7 +3727,7 @@ debug=True 输出的示例：
 
 ------
 
-## BaseChatModel 方法
+### BaseChatModel 方法
 
 | 方法                                     | 说明                  | 返回值                          |
 | :--------------------------------------- | :-------------------- | :------------------------------ |
@@ -3740,7 +3742,7 @@ debug=True 输出的示例：
 
 ------
 
-## 支持的模型提供商速查
+### 支持的模型提供商速查
 
 | provider 名  | 安装包                 | 示例 model 值                        |
 | :----------- | :--------------------- | :----------------------------------- |
@@ -3757,37 +3759,37 @@ debug=True 输出的示例：
 
 ------
 
-## 常用用法示例
+### 常用用法示例
 
-## 实例
+### 实例
 
 **from** langchain.chat_models **import** init_chat_model
 
-\# 固定模型
+    # 固定模型
 model = init_chat_model("deepseek:deepseek-v4-flash", temperature=0)
 response = model.invoke("你好")
 
-\# 可配置模型
+    # 可配置模型
 model = init_chat_model(configurable_fields=("model", "temperature"))
 response = model.invoke("你好", config={
   "configurable": {"model": "deepseek:deepseek-v4-flash", "temperature": 0.3}
 })
 
-\# 绑定工具
+    # 绑定工具
 model_with_tools = model.bind_tools([my_tool])
 response = model_with_tools.invoke("查询天气")
 
-\# 结构化输出
+    # 结构化输出
 model_structured = model.with_structured_output(MySchema)
 result = model_structured.invoke("提取信息")
 
 
 
-# LangChain Agent API
+## LangChain Agent API
 
 ------
 
-## create_agent() 完整参数
+### create_agent() 完整参数
 
 | 参数             | 类型                                   | 默认值     | 说明                                           |
 | :--------------- | :------------------------------------- | :--------- | :--------------------------------------------- |
@@ -3808,7 +3810,7 @@ result = model_structured.invoke("提取信息")
 
 ------
 
-## CompiledStateGraph 方法
+### CompiledStateGraph 方法
 
 | 方法                                               | 说明                   |
 | :------------------------------------------------- | :--------------------- |
@@ -3821,7 +3823,7 @@ result = model_structured.invoke("提取信息")
 
 ------
 
-## AgentState 结构
+### AgentState 结构
 
 | 字段                | 类型                                | 是否必填 | 说明                             |
 | :------------------ | :---------------------------------- | :------- | :------------------------------- |
@@ -3831,17 +3833,17 @@ result = model_structured.invoke("提取信息")
 
 ------
 
-## 常用用法示例
+### 常用用法示例
 
-## 实例
+### 实例
 
 **from** langchain.agents **import** create_agent
 
-\# 基本用法
+    # 基本用法
 agent = create_agent(model="deepseek:deepseek-v4-flash", tools=[tool1, tool2])
 result = agent.invoke({"messages": [HumanMessage(content="你好")]})
 
-\# 完整配置
+    # 完整配置
 agent = create_agent(
   model="deepseek:deepseek-v4-flash",
   tools=[tool1, tool2],
@@ -3853,20 +3855,20 @@ agent = create_agent(
   name="my_agent",
 )
 
-\# 流式运行
+    # 流式运行
 **for** chunk **in** agent.stream(inputs, stream_mode="updates"):
   **print**(chunk)
 
-\# 获取状态
+    # 获取状态
 state = agent.get_state({"configurable": {"thread_id": "1"}})
 
 
 
-# LangChain Messages API
+## LangChain Messages API
 
 ------
 
-## 所有消息类型
+### 所有消息类型
 
 | 类型           | role      | type   | 关键属性                            | 说明                  |
 | :------------- | :-------- | :----- | :---------------------------------- | :-------------------- |
@@ -3879,7 +3881,7 @@ state = agent.get_state({"configurable": {"thread_id": "1"}})
 
 ------
 
-## ContentBlock 类型（多模态内容）
+### ContentBlock 类型（多模态内容）
 
 | 类型                  | 说明                  | 使用场景             |
 | :-------------------- | :-------------------- | :------------------- |
@@ -3893,7 +3895,7 @@ state = agent.get_state({"configurable": {"thread_id": "1"}})
 
 ------
 
-## 常用辅助函数
+### 常用辅助函数
 
 | 函数            | 说明                         | 签名                                                         |
 | :-------------- | :--------------------------- | :----------------------------------------------------------- |
@@ -3901,30 +3903,30 @@ state = agent.get_state({"configurable": {"thread_id": "1"}})
 
 ------
 
-## 常用用法示例
+### 常用用法示例
 
-## 实例
+### 实例
 
 **from** langchain.messages **import** (
   HumanMessage, AIMessage, SystemMessage, ToolMessage, trim_messages
 )
 
-\# 创建消息
+    # 创建消息
 human = HumanMessage(content="你好")
 system = SystemMessage(content="你是助手")
 ai = AIMessage(content="你好！有什么可以帮你的？")
 tool = ToolMessage(content="结果", tool_call_id="call_1", name="my_tool")
 
-\# 快捷方式
+    # 快捷方式
 msg1 = ("user", "你好")      # 元组
 msg2 = {"role": "user", "content": "你好"} # 字典
 
-\# 消息属性
+    # 消息属性
 **print**(human.type)  # human
 **print**(human.content) # 你好
 **print**(ai.tool_calls) # [] 或 [ToolCall]
 
-\# 裁剪消息
+    # 裁剪消息
 trimmed = trim_messages(
   messages, max_tokens=1000, strategy="last",
   token_counter=model, include_system=True,
@@ -3932,11 +3934,11 @@ trimmed = trim_messages(
 
 
 
-# LangChain Tools API
+## LangChain Tools API
 
 ------
 
-## @tool 装饰器
+### @tool 装饰器
 
 | 参数          | 类型              | 默认值         | 说明                                   |
 | :------------ | :---------------- | :------------- | :------------------------------------- |
@@ -3947,7 +3949,7 @@ trimmed = trim_messages(
 
 ------
 
-## BaseTool 主要属性与方法
+### BaseTool 主要属性与方法
 
 | 属性/方法      | 说明                       |
 | :------------- | :------------------------- |
@@ -3960,7 +3962,7 @@ trimmed = trim_messages(
 
 ------
 
-## 依赖注入标记
+### 依赖注入标记
 
 | 标记               | 用途            | 用法                                  |
 | :----------------- | :-------------- | :------------------------------------ |
@@ -3971,21 +3973,21 @@ trimmed = trim_messages(
 
 ------
 
-## 常用用法示例
+### 常用用法示例
 
-## 实例
+### 实例
 
 **from** langchain.tools **import** tool, InjectedState, InjectedStore, ToolException
 **from** typing **import** Annotated
 **from** langgraph.store.base **import** BaseStore
 
-\# 基本工具
+    # 基本工具
 @tool
 **def** my_tool(param: str) -> str:
   """工具描述"""
   **return** f"结果: {param}"
 
-\# 带参数校验
+    # 带参数校验
 **from** pydantic **import** BaseModel, Field
 
 **class** MyInput(BaseModel):
@@ -3995,12 +3997,12 @@ trimmed = trim_messages(
 **def** validated_tool(param: str) -> str:
   **return** param
 
-\# 直接返回
+    # 直接返回
 @tool(return_direct=True)
 **def** query_tool(query: str) -> str:
   **return** f"结果: {query}"
 
-\# 注入状态
+    # 注入状态
 @tool
 **def** stateful_tool(
   param: str,
@@ -4008,7 +4010,7 @@ trimmed = trim_messages(
 ) -> str:
   **return** f"消息数: {len(state.get('messages', []))}"
 
-\# 注入 Store
+    # 注入 Store
 @tool
 **def** store_tool(
   key: str,
@@ -4017,18 +4019,18 @@ trimmed = trim_messages(
   item = store.get(("ns",), key)
   **return** str(item.value **if** item **else** "无")
 
-\# 异常处理
+    # 异常处理
 @tool
 **def** safe_tool(param: int) -> str:
   **if** param < 0:
     **raise** ToolException(f"参数必须为正数: {param}")
   **return** f"OK: {param}"
 
-# LangChain Middleware API
+## LangChain Middleware API
 
 ------
 
-## AgentMiddleware 基类钩子方法
+### AgentMiddleware 基类钩子方法
 
 | 方法             | 签名                                            | 执行频率     | 返回值          |
 | :--------------- | :---------------------------------------------- | :----------- | :-------------- |
@@ -4047,7 +4049,7 @@ trimmed = trim_messages(
 
 ------
 
-## 装饰器一览
+### 装饰器一览
 
 | 装饰器           | 参数                                   | 说明               |
 | :--------------- | :------------------------------------- | :----------------- |
@@ -4061,7 +4063,7 @@ trimmed = trim_messages(
 
 ------
 
-## ModelRequest 关键属性
+### ModelRequest 关键属性
 
 | 属性            | 类型                   | 说明                            |
 | :-------------- | :--------------------- | :------------------------------ |
@@ -4076,7 +4078,7 @@ trimmed = trim_messages(
 
 ModelRequest 的 override() 方法用于创建带修改的新请求：
 
-## 实例
+### 实例
 
 new_request = request.override(
   model=different_model,
@@ -4086,7 +4088,7 @@ new_request = request.override(
 
 ------
 
-## ModelResponse 结构
+### ModelResponse 结构
 
 | 属性                | 类型              | 说明               |
 | :------------------ | :---------------- | :----------------- |
@@ -4095,18 +4097,18 @@ new_request = request.override(
 
 ------
 
-## 特殊返回值 ExtendedModelResponse
+### 特殊返回值 ExtendedModelResponse
 
 | 属性           | 说明                                  |
 | :------------- | :------------------------------------ |
 | model_response | 底层的 ModelResponse                  |
 | command        | 可选的 Command 对象，用于额外状态更新 |
 
-# LangChain 配置与错误类
+## LangChain 配置与错误类
 
 ------
 
-## RunnableConfig 配置项
+### RunnableConfig 配置项
 
 | 字段            | 类型                      | 说明                                            |
 | :-------------- | :------------------------ | :---------------------------------------------- |
@@ -4116,7 +4118,7 @@ new_request = request.override(
 | tags            | list[str]                 | 标签列表，用于过滤和分组追踪                    |
 | callbacks       | list[BaseCallbackHandler] | 回调处理器                                      |
 
-## 实例
+### 实例
 
 config = {
   "configurable": {"thread_id": "user-001"},
@@ -4127,7 +4129,7 @@ result = agent.invoke(inputs, config=config)
 
 ------
 
-## Checkpointer 实现类
+### Checkpointer 实现类
 
 | 类            | 导入路径                      | 持久化 |
 | :------------ | :---------------------------- | :----- |
@@ -4135,30 +4137,30 @@ result = agent.invoke(inputs, config=config)
 | SqliteSaver   | langgraph.checkpoint.sqlite   | 是     |
 | PostgresSaver | langgraph.checkpoint.postgres | 是     |
 
-## 实例
+### 实例
 
-\# 内存
+    # 内存
 **from** langgraph.checkpoint.memory **import** InMemorySaver
 checkpointer = InMemorySaver()
 
-\# SQLite
+    # SQLite
 **from** langgraph.checkpoint.sqlite **import** SqliteSaver
 checkpointer = SqliteSaver.from_conn_string("checkpoints.db")
 
-\# PostgreSQL
-\# from langgraph.checkpoint.postgres import PostgresSaver
-\# checkpointer = PostgresSaver.from_conn_string("postgresql://...")
+    # PostgreSQL
+    # from langgraph.checkpoint.postgres import PostgresSaver
+    # checkpointer = PostgresSaver.from_conn_string("postgresql://...")
 
 ------
 
-## Store 实现类
+### Store 实现类
 
 | 类            | 导入路径                 | 持久化 |
 | :------------ | :----------------------- | :----- |
 | InMemoryStore | langgraph.store.memory   | 否     |
 | PostgresStore | langgraph.store.postgres | 是     |
 
-## 实例
+### 实例
 
 **from** langgraph.store.memory **import** InMemoryStore
 
@@ -4170,7 +4172,7 @@ store.delete(("namespace",), "key")
 
 ------
 
-## 常见异常类
+### 常见异常类
 
 | 异常                            | 来源                               | 说明                                              |
 | :------------------------------ | :--------------------------------- | :------------------------------------------------ |
@@ -4185,7 +4187,7 @@ store.delete(("namespace",), "key")
 
 ------
 
-## LaunchDarkly 配置检查清单
+### LaunchDarkly 配置检查清单
 
 | 检查项         | 命令/方法                                                    |
 | :------------- | :----------------------------------------------------------- |
@@ -4198,27 +4200,27 @@ store.delete(("namespace",), "key")
 > 本教程的 API 参考基于 LangChain v1.3.0。由于 LangChain 仍在快速发展，建议在使用时查阅最新的官方文档以获取最新 API 信息。
 ---
 
-# 实战笔记：wrap 中间件 sync/async 双版本（阶段 5 踩坑，2026-08）
+## 实战笔记：wrap 中间件 sync/async 双版本（阶段 5 踩坑，2026-08）
 
-## 现象
+### 现象
 Web 端（astream/ainvoke）流式卡死，后端报：
 `NotImplementedError: awrap_model_call is not available`
 
-## 根因链（三层坑）
+### 根因链（三层坑）
 1. `@wrap_model_call` 装饰**同步函数** → 异步上下文（astream/ainvoke）不可用
    （before/after 钩子有自动 sync→async 包装，**wrap 没有**）
 2. 改 async 后 `return handler(...)` 漏 `await` → `'coroutine' object has no attribute 'result'`
 3. 只写 async 版 → 同步上下文（invoke）反向报错
 
-## 结论
+### 结论
 **wrap 中间件必须同时实现 wrap_model_call + awrap_model_call**（AgentMiddleware 子类，公共逻辑抽方法）。
 `@dynamic_prompt` 底层也是 wrap，同样处理。
 
-## 教训
+### 教训
 - 中间件改动必须**双端验证**（CLI 同步 + Web 异步），单端通过不算数
 - 报错信息里的 NotImplementedError 提示了三种解法：子类化 / async 函数 / 同步调用
 
-# 实战笔记：记忆层 async 四连坑（阶段 6，2026-08）
+## 实战笔记：记忆层 async 四连坑（阶段 6，2026-08）
 
 1. 同步 SqliteSaver 不支持异步方法（aget_tuple → NotImplementedError）→ 用 AsyncSqliteSaver
 2. 直接 aiosqlite.connect() 构造有 loop 生命周期问题（Event loop is closed）→ from_conn_string + async with
@@ -4229,14 +4231,14 @@ Web 端（astream/ainvoke）流式卡死，后端报：
 规律：langgraph 持久化组件（checkpointer/store）都是同步/异步双实现，
 Web 异步场景必须 Async 类 + async 方法 + async 上下文管理（memory_ctx 模式）。
 
-# 实战笔记：会话管理与标题生成修复（阶段 6.5，2026-08）
+## 实战笔记：会话管理与标题生成修复（阶段 6.5，2026-08）
 
-## 三个修复
+### 三个修复
 1. **Vite 代理漏配**：新增后端接口（/threads）后 vite.config.js 没加代理 → 前端请求打到 Vite 自身返回 404。教训：加接口必查代理；vite.config.js 改动必须重启 Vite。
 2. **asyncio.create_task 无引用被 GC**：后台任务（标题生成）"时灵时不灵"。必须保存 task 引用（模块级集合 + done_callback 清理）。这是 asyncio 官方文档明确警告的经典坑。
 3. **checkpoint["ts"]**：LangGraph 写 checkpoint 时自动生成的时间戳（ISO 8601），不是自己传的；是"最近对话时间"排序的可靠键（step 是执行步数，不代表时间）。
 
-## 会话管理能力（用户需求迭代）
+### 会话管理能力（用户需求迭代）
 - 排序：按 checkpoint.ts 降序（最近聊的排最前）
 - 删除：DELETE /threads/{tid}（adelete_thread + Store 删标题；用户进度独立 namespace 不受影响）
 - 重命名：POST /threads/{tid}/rename（Store 标题）
