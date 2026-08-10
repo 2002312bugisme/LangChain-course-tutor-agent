@@ -131,3 +131,22 @@ async def memory_ctx():
 | TC-31 | 侧边栏点击其他会话 | 切换 thread_id，加载该会话历史 |
 | TC-32 | 点"＋新建会话"再提问 | 新会话，回复"第一次对话"；侧边栏出现新会话 |
 | TC-33 | CLI `python -m app.cli agent "你好"` | 正常（ImportError 已修） |
+
+---
+
+## 8. 对话补充：记忆存储位置（用户提问"短期/长期记忆都在内存中吗"）
+
+**都不是纯内存——都持久化在 SQLite 磁盘文件 `data/agent_memory.db`**（实测）：
+
+| 记忆类型 | 表 | 数据量 |
+|---|---|---|
+| 短期记忆（会话/checkpointer） | `checkpoints` + `writes` | 179 条 checkpoint / 297 条 write |
+| 长期记忆（用户进度/Store） | `store` | 14 条 |
+| Store 内部版本 | `store_migrations` | 5 条 |
+
+**为什么会误以为在内存**：
+1. 名字带 "memory"
+2. 运行时确实有内存部分：Agent 单例、BM25 索引、中间件对象——但它们是"访问通道/缓存"，不是记忆本体
+3. 对比：`InMemorySaver` / `InMemoryStore` 才是纯内存（进程重启全丢，官方教程常用）；我们阶段 6 决策用 SQLite 正是为了持久化
+
+**一句话**：记忆本体在磁盘，内存里只有访问通道（连接对象 + Agent 实例）。

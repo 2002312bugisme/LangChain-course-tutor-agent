@@ -142,3 +142,45 @@ return result.model_dump()
 ## 5. 提交
 
 - `git commit: feat(phase7): 结构化输出学习计划卡片 + 会话导出 Markdown`
+
+---
+
+## 6. 对话补充：计划功能后续修复记录（用户实测驱动）
+
+### 6.1 Vite 代理 404（第二次踩坑）
+
+- **现象**：点"生成计划"→ "计划生成失败：HTTP 404"
+- **根因**：`/plan` 接口新增后未加进 `vite.config.js` 代理白名单（同 `/threads` 坑）
+- **修复**：proxy 加 `'/plan'`；**vite.config.js 改动必须重启 Vite**
+- **教训固化**：新增后端接口 → 第一件事检查代理白名单
+
+### 6.2 前端请求超时保护
+
+- 浏览器 fetch 无超时，后端异常时可能永久转圈
+- 修复：`AbortController` 45s 超时 + 响应格式校验（`Array.isArray(data.topics)`），挂起时显示明确错误而非永久 loading
+
+### 6.3 学习计划实时生成（非硬编码）
+
+- 用户反馈：示例按钮固定文案=硬编码，不能按输入内容规划
+- 修复：输入框旁新增"📊 计划"按钮，规划主题 = 输入框内容；示例按钮改为"填入输入框"引导
+
+### 6.4 计划接入会话系统
+
+- 用户反馈：生成计划后侧边栏不出现会话
+- 根因：`/plan` 独立接口不写 checkpointer
+- 修复：`/plan` 把 HumanMessage + AIMessage（plan 存 `additional_kwargs["plan"]`）写入当前 thread + 异步标题生成；`/threads/{tid}/messages` 返回 plan 数据；前端历史回看渲染卡片（实时/历史共用模板 + `_planning` 状态标记）
+
+### 6.5 会话标题实时更新
+
+- 用户反馈：标题自动生成要手动刷新才出现
+- 根因：标题是后台 `asyncio.create_task` 异步生成，前端只在请求返回时刷新一次
+- 修复：前端 `waitTitle()` 短时轮询（1.5s × 最多 8 次 ≈12s），标题出现即停；已命名会话立即返回不无谓轮询
+
+### 6.6 多轮工具循环渲染修复（重大）
+
+- **现象**：思考+回复只显示第一轮；"刷新页面才能看到第二轮及以后的内容"
+- **三个根因叠加**：
+  1. 后端 `stream_mode="messages"` 把 tools 节点的 **ToolMessage 当 token 发出** → 工具结果混入回复文本。修复：`metadata.get("langgraph_node") != "model"` 过滤
+  2. 前端 `attachRender` 的 **`!m._html` 短路** → 第一次 token 渲染后不再重新 parse → 打字机卡死（v-html 永远显示第一个 token 的结果）。修复：去掉短路，每次 token 重新渲染
+  3. 多轮内容合并一条消息 → 思考区 160px 截断。修复：**工具调用后的新一轮内容开新 AI 消息**（与历史接口的多条 AIMessage 一致）
+- **验证**：SSE 事件流 3 轮思考/回复干净无工具结果混入

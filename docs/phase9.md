@@ -94,3 +94,30 @@ Exception（兜底）                    → 500 {"code": "internal"}
 ## 5. 提交
 
 - `git commit: feat(phase9): 模型切换 + 错误分层 + batch + LangSmith 说明`
+
+---
+
+## 6. 对话补充：验收过程记录
+
+### 6.1 模型下拉不显示（Vite 代理第三次坑）
+
+- 用户反馈：header 没有模型下拉
+- 根因：`/models` 新增后未加代理白名单 → 前端拿到 index.html → JSON 解析失败 → 列表空
+- 修复：proxy 加 `'/models'`、`'/batch'` + 重启 Vite
+- **教训**：这是第三次（/threads、/plan、/models）——README 已固化"新增后端接口先加代理"
+
+### 6.2 CLI 运行目录坑
+
+- 用户从 `docs/` 目录跑 `python -m app.cli batch` → `ModuleNotFoundError: No module named 'app'`
+- 根因：`python -m` 以**当前工作目录**为模块搜索起点
+- 修复：README 醒目注明"必须在项目根目录运行"
+
+### 6.3 LangSmith 配置与验证全过程
+
+- **第一次 key 401**：`LangSmithAuthError: 401 Invalid token`（key 无效）
+- **第二次 key 验证**：显式 `Client(api_key=...)` → list_runs 成功 ✅
+- **验证陷阱**：脚本进程不加载 .env（环境变量无 key）→ 查询必须显式传 key；后端进程必须重启才读新配置
+- **最终确认**：后端跑一次"推荐一门 Python 入门课"→ LangSmith 出现 5 条 runs：
+  `[chain] logging.after_agent → [tool] get_course_detail → [chain] tools → [chain] logging.after_model → [llm] ChatDeepSeek 1.6s`
+- **后续使用**：所有调用自动上报；LangSmith 控制台可看时间线/LLM 调用/token 用量/工具参数/中间件钩子
+- **安全**：key 只存 .env（gitignore），Git 历史无明文
