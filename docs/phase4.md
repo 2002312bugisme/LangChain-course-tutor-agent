@@ -118,3 +118,32 @@ npm run dev
 | 9.3 config（thread_id 预留） | ChatRequest.thread_id |
 | 需求⑦ | SSE reasoning/token 事件 + 前端思考区 |
 | FastAPI 异步 | 事件循环不阻塞（ainvoke 挂起而非卡死） |
+
+## 8.5 前端 Bug 修复：Vue 3 响应式陷阱（用户实测发现）
+
+**现象**：思考区/工具区/回复区不实时滚动，全部完成后"一大坨"出现。
+
+**根因**：`messages.value.push(msg)` 时对象被 ref 包装成响应式 Proxy，但代码持有的是**原始对象引用**——后续 `msg.thinking += ...` 修改原始对象不触发 Proxy 的 set 拦截 → 不触发渲染。直到 `loading=false` 触发重渲染，Proxy 惰性读到最新值，一次性全部显示。
+
+**修复**：push 后从代理数组重新取引用：
+```js
+messages.value.push({ role: 'assistant', content: '', thinking: '', tools: [] })
+const msg = messages.value[messages.value.length - 1]  // ★ 代理引用
+```
+**教学点**：Vue 3 响应式 = Proxy 代理；"改数据要改代理，不要改原对象"。CLI 验证已通过（HMR 实时生效）。
+
+## 9. 知识补充（用户提问汇总）
+
+### 9.1 SSE 是什么
+服务器单向推送的 HTTP 长连接方案（`data: json\n\n` 文本协议）；对比：轮询（反复问）、WebSocket（双向全双工，重）。AI 对话=单向流 → SSE 最合适，EventSource 自带断线重连。
+
+### 9.2 跨域解决手段（4 种）
+① 后端 CORS 中间件（FastAPI CORSMiddleware，响应头声明允许）② Vite 开发代理（浏览器只见同源 5173）③ Nginx 反向代理（生产标准：静态页+API 同域）④ JSONP（淘汰）。本项目 = ②+① 双保险，生产加 ③。
+
+### 9.3 Vite vs Webpack
+Vite：开发不打包（浏览器原生 ESM + esbuild 预构建），秒开、HMR 快，生产 Rollup 打包，Vue 官方默认。
+Webpack：开发也全量打包，启动慢、配置复杂，老项目在用。
+**本质**：Vite 把"打包"从开发期挪到浏览器按需加载。
+
+### 9.4 为什么全用异步 API
+FastAPI 单线程事件循环：同步 invoke 会阻塞整个服务器（一个用户卡住所有人）；异步 ainvoke/astream 只挂起当前协程。CLI 用同步（无所谓），Web 必须异步。

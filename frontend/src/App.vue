@@ -22,8 +22,12 @@ async function send() {
   loading.value = true
 
   messages.value.push({ role: 'user', content: text })
-  const msg = { role: 'assistant', content: '', thinking: '', tools: [] }
-  messages.value.push(msg)
+  messages.value.push({ role: 'assistant', content: '', thinking: '', tools: [] })
+  // ★ Vue 3 响应式陷阱修复：必须从代理数组里取引用！
+  // push 时对象被 ref 包装成响应式 Proxy；若持有原始对象引用，
+  // 后续修改不会触发渲染（全部结束后才一次性出现）。
+  // 通过 messages.value[i] 读取 → 拿到的是 Proxy → 修改即触发更新。
+  const msg = messages.value[messages.value.length - 1]
   scrollBottom()
 
   try {
