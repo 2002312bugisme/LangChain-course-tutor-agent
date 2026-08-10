@@ -4196,3 +4196,24 @@ store.delete(("namespace",), "key")
 | 模型连通性     | 使用 init_chat_model() 发送简单请求测试                      |
 
 > 本教程的 API 参考基于 LangChain v1.3.0。由于 LangChain 仍在快速发展，建议在使用时查阅最新的官方文档以获取最新 API 信息。
+---
+
+# 实战笔记：wrap 中间件 sync/async 双版本（阶段 5 踩坑，2026-08）
+
+## 现象
+Web 端（astream/ainvoke）流式卡死，后端报：
+`NotImplementedError: awrap_model_call is not available`
+
+## 根因链（三层坑）
+1. `@wrap_model_call` 装饰**同步函数** → 异步上下文（astream/ainvoke）不可用
+   （before/after 钩子有自动 sync→async 包装，**wrap 没有**）
+2. 改 async 后 `return handler(...)` 漏 `await` → `'coroutine' object has no attribute 'result'`
+3. 只写 async 版 → 同步上下文（invoke）反向报错
+
+## 结论
+**wrap 中间件必须同时实现 wrap_model_call + awrap_model_call**（AgentMiddleware 子类，公共逻辑抽方法）。
+`@dynamic_prompt` 底层也是 wrap，同样处理。
+
+## 教训
+- 中间件改动必须**双端验证**（CLI 同步 + Web 异步），单端通过不算数
+- 报错信息里的 NotImplementedError 提示了三种解法：子类化 / async 函数 / 同步调用
