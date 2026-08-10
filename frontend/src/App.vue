@@ -138,17 +138,27 @@ async function generatePlan(q) {
   messages.value.push({ role: 'plan', plan: null, error: '' })
   const idx = messages.value.length - 1
   scrollBottom()
+  // 超时保护：45s 无响应则报错（避免 fetch 永久挂起）
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), 45000)
   try {
     const resp = await fetch('/plan', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: q }),
+      signal: ctrl.signal,
     })
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
-    messages.value[idx].plan = await resp.json()
+    const data = await resp.json()
+    if (!data || !Array.isArray(data.topics)) throw new Error('响应格式异常')
+    // ★ Vue 3 响应式：从代理数组取引用再修改
+    const msg = messages.value[idx]
+    msg.plan = data
   } catch (e) {
-    messages.value[idx].error = e.message
+    const msg = messages.value[idx]
+    msg.error = e.name === 'AbortError' ? '生成超时（45s），请重试' : e.message
   } finally {
+    clearTimeout(timer)
     loading.value = false
     scrollBottom()
   }
