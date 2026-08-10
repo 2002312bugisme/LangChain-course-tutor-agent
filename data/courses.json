@@ -1,0 +1,74 @@
+[
+  {
+    "id": "py-101",
+    "title": "Python 零基础入门",
+    "level": "入门",
+    "duration_hours": 20,
+    "tags": ["python", "基础", "语法"],
+    "description": "从零开始学 Python：变量、数据类型、条件、循环、函数"
+  },
+  {
+    "id": "py-201",
+    "title": "Python 进阶：面向对象与异常",
+    "level": "进阶",
+    "duration_hours": 15,
+    "tags": ["python", "oop", "异常处理"],
+    "description": "类与对象、继承、魔术方法、异常体系"
+  },
+  {
+    "id": "py-301",
+    "title": "Python 高级：装饰器与异步",
+    "level": "高级",
+    "duration_hours": 18,
+    "tags": ["python", "装饰器", "asyncio"],
+    "description": "装饰器、生成器、协程与 asyncio"
+  },
+  {
+    "id": "js-101",
+    "title": "JavaScript 基础入门",
+    "level": "入门",
+    "duration_hours": 22,
+    "tags": ["javascript", "基础"],
+    "description": "ES6+ 语法、DOM 操作、事件处理"
+  },
+  {
+    "id": "fe-201",
+    "title": "Vue 3 前端开发实战",
+    "level": "进阶",
+    "duration_hours": 25,
+    "tags": ["vue", "前端", "组合式API"],
+    "description": "Vue3 组合式 API、组件化、Vite、SSE 集成"
+  },
+  {
+    "id": "fe-301",
+    "title": "前端工程化与性能优化",
+    "level": "高级",
+    "duration_hours": 20,
+    "tags": ["前端", "构建", "性能"],
+    "description": "Vite/Webpack 原理、代码分割、性能监控"
+  },
+  {
+    "id": "lc-101",
+    "title": "LangChain 入门与 Agent 实战",
+    "level": "入门",
+    "duration_hours": 30,
+    "tags": ["langchain", "agent", "llm"],
+    "description": "模型调用、消息、工具、create_agent、中间件"
+  },
+  {
+    "id": "lc-201",
+    "title": "LangChain 进阶：RAG 与记忆",
+    "level": "进阶",
+    "duration_hours": 28,
+    "tags": ["langchain", "rag", "记忆"],
+    "description": "切片、向量检索、checkpointer、Store、多 Agent"
+  },
+  {
+    "id": "web-101",
+    "title": "FastAPI 后端开发",
+    "level": "入门",
+    "duration_hours": 16,
+    "tags": ["fastapi", "后端", "api"],
+    "description": "路由、Pydantic 模型、异步、SSE 流式接口"
+  }
+]

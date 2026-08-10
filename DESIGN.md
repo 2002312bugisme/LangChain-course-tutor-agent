@@ -2,6 +2,7 @@
 
 > 目标：从最小 Agent 起步，分阶段构建一个 Web 端 Agent，最大程度覆盖 LangChain.md / agent_api_reference.md 中的知识点，最终包含 RAG + 切片。
 > **决策记录（2026-08 用户确认）**：① 业务=编程学习助手；② RAG 知识源=笔记+官方文档双源；③ Embedding=BM25 关键词检索（零向量依赖，中文需 jieba 分词）；④ 前端=Vue 3 搭建；⑤ 后端=FastAPI（轻量，异步+SSE 原生友好）；⑥ 允许按需 pip 安装新包。
+> **新增需求（2026-08 阶段 2 后提出）**：⑦ deepseek-v4-flash 为推理模型，交流过程中需**流式展示思考过程**（🤔 思考 与 💬 回复 分段流式输出）——阶段 3 CLI 先行验证，阶段 4 Web 落地。
 
 ---
 
@@ -94,9 +95,13 @@ D:\Code\LangChain_1.2\
 - **验收**：问"有没有 Python 入门课"→ 模型自动调工具回答
 
 ### 阶段 4：Web 化（FastAPI + 流式）
-- **做**：`main.py` 三个接口：`GET /health`、`POST /chat`（ainvoke）、`POST /chat/stream`（astream + SSE）；`static/index.html` 打字机页面
+- **做**：`main.py` 三个接口：`GET /health`、`POST /chat`（ainvoke）、`POST /chat/stream`（astream + SSE）；前端 Vue 打字机页面
 - **覆盖知识点**：ainvoke/astream、SSE、事件循环不阻塞、config（run_name/tags/metadata）
-- **验收**：浏览器打开页面，多轮对话 + 流式输出正常
+- **新增需求（思考流式展示，预研已验证 ✅）**：stream 模式下 chunk 分流规则——
+  `chunk.additional_kwargs["reasoning_content"]` 有值 → 思考事件（`{type:"reasoning"}`）
+  `chunk.content` 有值 → 回复事件（`{type:"token"}`）
+  实测确认思考 chunk 先全部到达、回复 chunk 随后（首块空 chunk 忽略）。前端：思考区灰字 + 回复区正常显示。
+- **验收**：浏览器打开页面，多轮对话 + 流式输出正常（含思考过程展示）
 
 ### 阶段 5：中间件
 - **做**：日志中间件（before_agent/after_model 打印统计）、`@wrap_model_call` 重试/降级演示、`@dynamic_prompt`（注入当前时间/用户等级）

@@ -112,6 +112,15 @@ python -m app.cli construct
 | TC-07 | 同上 | `python -m app.cli construct` | 打印四种构造方式，msg1 为 HumanMessage |
 | TC-08 | 同上 | `python -m app.cli invoke "1+1=?"` | 正常回复（回归：阶段 1 功能未破坏） |
 
+## 7.5 人工测试记录（2026-08 用户实测，全部通过 ✅）
+
+- **TC-05** chat：第 1/2 轮均正常输出 🤔 思考 + 💬 回复；第 2 轮回复"你叫小明。根据你的情况，**建议先学 Python 基础语法**…"→ 引用前文 ✅
+- **TC-06** trim：裁剪前 42 条约 1297 tokens → 裁剪后 4 条约 114 tokens；首条 SystemMessage、human 开头 ✅
+- **TC-07** construct：四种构造方式打印正常 ✅
+- **TC-08** invoke 回归：`1+1=?` → `2`，finish_reason=stop，token 输入 87 输出 17 总计 104 ✅
+
+> 用户反馈：流式体验优于 invoke（阶段 4 流式 UI 重点）；提出新需求"交流过程中流式展示模型思考过程"→ 已登记 DESIGN.md
+
 ## 8. 知识点映射
 
 | 手册条目 | 落地 |

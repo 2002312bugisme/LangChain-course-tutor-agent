@@ -6,6 +6,8 @@
     python -m app.cli chat            # 多轮对话（引用前文验证）
     python -m app.cli trim            # trim_messages 裁剪演示
     python -m app.cli construct       # 消息快捷构造演示
+    python -m app.cli agent "..."     # Agent 完整调用（invoke，打印工具调用链）
+    python -m app.cli agent-stream "..."  # Agent 流式（思考+回复分段展示）
 """
 import sys
 
@@ -18,6 +20,7 @@ from app.messages import (
     trim_history,
 )
 from app.model import get_model
+from app.agent import get_agent
 
 
 def demo_invoke(prompt: str) -> None:
@@ -110,6 +113,62 @@ def demo_trim() -> None:
     print(f"[trim] 是否以 human 开头: {trimmed[0].type == 'human' or isinstance(trimmed[0], SystemMessage) and trimmed[1].type == 'human'}")
 
 
+def demo_agent(prompt: str) -> None:
+    """Agent invoke 版：打印完整执行链（工具调用过程）。"""
+    print("=" * 50)
+    print(f"[agent] 输入: {prompt!r}")
+    print("=" * 50)
+    result = get_agent().invoke({"messages": [HumanMessage(content=prompt)]})
+
+    print("\n[agent] 执行过程：")
+    for m in result["messages"]:
+        if m.type == "human":
+            print(f"  [用户] {m.content}")
+        elif m.type == "ai":
+            if m.tool_calls:
+                print(f"  [AI→工具] {[(c['name'], c['args']) for c in m.tool_calls]}")
+            if m.content:
+                _print_ai(m)
+        elif m.type == "tool":
+            print(f"  [工具] {m.name} -> {str(m.content)[:60]}")
+    print("\n[agent] ✅ 完成")
+
+
+def demo_agent_stream(prompt: str) -> None:
+    """Agent 流式版：思考过程 + 回复分段实时展示（新增需求）。
+
+    机制（预研已验证）：
+    - stream_mode="messages" 产出 (AIMessageChunk, metadata)
+    - chunk.additional_kwargs["reasoning_content"] 有值 → 思考阶段
+    - chunk.content 有值 → 回复阶段
+    """
+    print("=" * 50)
+    print(f"[agent-stream] 输入: {prompt!r}")
+    print("=" * 50)
+    phase = None  # None / "thinking" / "answer"
+    for chunk, metadata in get_agent().stream(
+        {"messages": [HumanMessage(content=prompt)]},
+        stream_mode="messages",
+    ):
+        node = metadata.get("langgraph_node", "?")
+        reasoning = chunk.additional_kwargs.get("reasoning_content")
+        text = chunk.content or ""
+
+        # 阶段切换：思考 → 回复
+        if phase is None and reasoning:
+            phase = "thinking"
+            print("\n🤔 思考: ", end="", flush=True)
+        elif phase == "thinking" and text and not reasoning:
+            phase = "answer"
+            print("\n\n💬 回复: ", end="", flush=True)
+
+        if reasoning:
+            print(reasoning, end="", flush=True)
+        if text:
+            print(text, end="", flush=True)
+    print("\n\n[agent-stream] ✅ 完成")
+
+
 def main() -> None:
     cmd = sys.argv[1] if len(sys.argv) > 1 else "invoke"
     prompt = sys.argv[2] if len(sys.argv) > 2 else "你好，用一句话介绍你自己"
@@ -121,6 +180,10 @@ def main() -> None:
         demo_trim()
     elif cmd == "construct":
         demo_quick_construct()
+    elif cmd == "agent":
+        demo_agent(prompt)
+    elif cmd == "agent-stream":
+        demo_agent_stream(prompt)
     else:
         demo_invoke(prompt)
 
