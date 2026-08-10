@@ -130,3 +130,9 @@ Web: POST /chat "再见" → 同样拦截 ✅
 1. **循环导入**：agent.py ↔ middleware.py 互相引用 AGENT_SYSTEM_PROMPT → 抽 prompts.py 解决
 2. **误判洋葱顺序**：验证 wrap 时打印 system_message 头部，动态和静态 prompt 前 60 字符相同 → 误以为 dynamic 没生效。打印**尾部**才确认。**教训：验证打印要选能区分差异的位置**
 3. **@dynamic_prompt 不可直接调用**：装饰后是 AgentMiddleware 实例（`type(personalized_prompt)` = 专用类），不是函数
+4. **【重大】wrap 中间件必须 sync/async 双版本**（用户实测 TC-21 发现 Web 端卡"思考中"）：
+   - **第一层坑**：`@wrap_model_call` 装饰**同步函数** → 异步上下文（astream/ainvoke）抛 `NotImplementedError: awrap_model_call is not available`——CLI 同步测试通过、Web 端（ainvoke/astream）全挂。**根因**：wrap 中间件没有 before/after 钩子那样的自动 sync→async 包装。
+   - **第二层坑**：改成 async 函数后，`return handler(...)` 漏写 `await` → `AttributeError: 'coroutine' object has no attribute 'result'`（async 函数里调 async handler 必须 await）。
+   - **第三层坑**：只写 async 版 → 同步上下文（CLI invoke）反向报 `NotImplementedError: wrap_model_call is not available`。
+   - **最终方案**：`@dynamic_prompt` 和 `@wrap_model_call` 都改为 **AgentMiddleware 子类，同时实现 wrap_model_call + awrap_model_call**（公共逻辑抽 `_make_prompt`/`_inject`，sync 版 `return handler(...)`、async 版 `return await handler(...)`）。`@before_model` 等 before/after 钩子不受影响（有自动包装）。
+   - **教训**：中间件改动必须**双端验证**（CLI 同步 + Web 异步），单端通过不算数。
