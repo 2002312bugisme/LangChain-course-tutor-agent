@@ -7,8 +7,10 @@ const messages = ref([])        // {role: 'user'|'assistant', content, thinking,
 const input = ref('')
 const loading = ref(false)
 const chatBox = ref(null)
-const threads = ref([])         // 会话列表 [{thread_id, step}]
+const threads = ref([])         // 会话列表 [{thread_id, step, ts, title}]
 const activeThread = ref('')
+const editingId = ref(null)      // 正在重命名的会话 id
+const editingTitle = ref('')
 
 // thread_id 会话管理（localStorage 持久化，刷新页面续聊）
 const THREAD_KEY = 'kezhan_thread_id'
@@ -55,6 +57,37 @@ async function newSession() {
   localStorage.setItem(THREAD_KEY, activeThread.value)
   messages.value = []
   await loadThreads()
+}
+
+// 重命名：进入编辑态
+function startRename(t) {
+  editingId.value = t.thread_id
+  editingTitle.value = t.title
+}
+
+async function saveRename(tid) {
+  const title = editingTitle.value.trim()
+  editingId.value = null
+  if (!title) return
+  try {
+    await fetch(`/threads/${encodeURIComponent(tid)}/rename`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title }),
+    })
+    await loadThreads()
+  } catch (e) { /* ignore */ }
+}
+
+// 删除会话：确认后删除；若删的是当前会话则新建一个
+async function removeThread(tid) {
+  if (loading.value) return
+  if (!confirm('确定删除该会话吗？删除后不可恢复。')) return
+  try {
+    await fetch(`/threads/${encodeURIComponent(tid)}`, { method: 'DELETE' })
+    if (activeThread.value === tid) await newSession()
+    else await loadThreads()
+  } catch (e) { /* ignore */ }
 }
 
 async function send() {
@@ -133,8 +166,23 @@ onMounted(async () => {
           @click="switchThread(t.thread_id)"
           :title="t.thread_id"
         >
-          <div class="thread-title">{{ t.title }}</div>
-          <div class="thread-step">{{ t.step }} 步</div>
+          <!-- 重命名编辑态 -->
+          <input
+            v-if="editingId === t.thread_id"
+            v-model="editingTitle"
+            class="rename-input"
+            @click.stop
+            @keyup.enter="saveRename(t.thread_id)"
+            @keyup.esc="editingId = null"
+            @blur="saveRename(t.thread_id)"
+          />
+          <template v-else>
+            <div class="thread-title">{{ t.title }}</div>
+            <div class="thread-actions" @click.stop>
+              <button class="icon-btn" title="重命名" @click="startRename(t)">✏️</button>
+              <button class="icon-btn" title="删除会话" @click="removeThread(t.thread_id)">🗑</button>
+            </div>
+          </template>
         </div>
         <div v-if="threads.length === 0" class="thread-empty">暂无历史会话</div>
       </div>
@@ -197,10 +245,15 @@ body { font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; background: #f0f2
 .new-session:hover { background: #1d4ed8; }
 .new-session:disabled { opacity: .5; cursor: not-allowed; }
 .thread-list { flex: 1; overflow-y: auto; padding: 0 10px 14px; }
-.thread-item { padding: 10px 12px; border-radius: 8px; cursor: pointer; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
+.thread-item { padding: 8px 10px; border-radius: 8px; cursor: pointer; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
 .thread-item:hover { background: #334155; }
 .thread-item.active { background: #2563eb; }
-.thread-title { font-size: 13px; }
+.thread-title { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.thread-actions { display: none; gap: 2px; flex-shrink: 0; }
+.thread-item:hover .thread-actions { display: flex; }
+.icon-btn { background: none; border: none; cursor: pointer; font-size: 12px; padding: 2px 3px; border-radius: 4px; opacity: .8; }
+.icon-btn:hover { background: rgba(255,255,255,.2); opacity: 1; }
+.rename-input { width: 100%; padding: 4px 6px; border: 1px solid #60a5fa; border-radius: 4px; font-size: 13px; background: #fff; color: #1e293b; outline: none; }
 .thread-step { font-size: 11px; color: #94a3b8; }
 .thread-empty { color: #64748b; font-size: 13px; text-align: center; padding: 20px 0; }
 

@@ -120,7 +120,7 @@ async def health():
 
 @app.get("/threads")
 async def list_threads():
-    """会话列表：枚举 thread_id + 从 Store 合并 LLM 生成的标题。"""
+    """会话列表：按最近对话时间（checkpoint.ts）降序 + Store 标题。"""
     cp = _memory["checkpointer"]
     store = _memory["store"]
     threads: dict[str, dict] = {}
@@ -129,15 +129,39 @@ async def list_threads():
         tid = cfg.get("configurable", {}).get("thread_id")
         if not tid:
             continue
+        ck = item.checkpoint or {}
+        ts = ck.get("ts", "")   # ISO 时间戳：会话最近活动时间
         step = (item.metadata or {}).get("step", 0)
-        if tid not in threads or step > threads[tid]["step"]:
-            threads[tid] = {"thread_id": tid, "step": step}
-    # 最新会话在前 + 合并标题
-    result = sorted(threads.values(), key=lambda x: -x["step"])
+        # 同一会话保留最新 checkpoint（按 ts 比较）
+        if tid not in threads or ts > threads[tid]["ts"]:
+            threads[tid] = {"thread_id": tid, "step": step, "ts": ts}
+    # 最近对话时间降序
+    result = sorted(threads.values(), key=lambda x: x["ts"], reverse=True)
     for t in result:
         item = await store.aget(("threads", t["thread_id"]), "title")
         t["title"] = (item.value if item else None) or "新会话"
     return result
+
+
+@app.delete("/threads/{tid}")
+async def delete_thread(tid: str):
+    """删除会话：清 checkpointer 全部 checkpoint + Store 标题。
+
+    注意：用户学习进度（跨会话数据）在独立 namespace，不受影响。
+    """
+    await _memory["checkpointer"].adelete_thread(tid)
+    await _memory["store"].adelete(("threads", tid), "title")
+    return {"ok": True, "thread_id": tid}
+
+
+@app.post("/threads/{tid}/rename")
+async def rename_thread(tid: str, payload: dict):
+    """重命名会话：更新 Store 中的标题。"""
+    title = (payload.get("title") or "").strip()[:30]
+    if not title:
+        return {"ok": False, "error": "标题不能为空"}
+    await _memory["store"].aput(("threads", tid), "title", title)
+    return {"ok": True, "thread_id": tid, "title": title}
 
 
 @app.get("/threads/{tid}/messages")
