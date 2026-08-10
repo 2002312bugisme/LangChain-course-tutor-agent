@@ -11,6 +11,8 @@ export default defineConfig({
       '/chat': 'http://127.0.0.1:8000',
       '/threads': 'http://127.0.0.1:8000',
       '/plan': 'http://127.0.0.1:8000',
+      '/models': 'http://127.0.0.1:8000',
+      '/batch': 'http://127.0.0.1:8000',
     },
   },
 })
