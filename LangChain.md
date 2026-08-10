@@ -4228,3 +4228,17 @@ Web 端（astream/ainvoke）流式卡死，后端报：
 
 规律：langgraph 持久化组件（checkpointer/store）都是同步/异步双实现，
 Web 异步场景必须 Async 类 + async 方法 + async 上下文管理（memory_ctx 模式）。
+
+# 实战笔记：会话管理与标题生成修复（阶段 6.5，2026-08）
+
+## 三个修复
+1. **Vite 代理漏配**：新增后端接口（/threads）后 vite.config.js 没加代理 → 前端请求打到 Vite 自身返回 404。教训：加接口必查代理；vite.config.js 改动必须重启 Vite。
+2. **asyncio.create_task 无引用被 GC**：后台任务（标题生成）"时灵时不灵"。必须保存 task 引用（模块级集合 + done_callback 清理）。这是 asyncio 官方文档明确警告的经典坑。
+3. **checkpoint["ts"]**：LangGraph 写 checkpoint 时自动生成的时间戳（ISO 8601），不是自己传的；是"最近对话时间"排序的可靠键（step 是执行步数，不代表时间）。
+
+## 会话管理能力（用户需求迭代）
+- 排序：按 checkpoint.ts 降序（最近聊的排最前）
+- 删除：DELETE /threads/{tid}（adelete_thread + Store 删标题；用户进度独立 namespace 不受影响）
+- 重命名：POST /threads/{tid}/rename（Store 标题）
+- 标题自动总结：后台 LLM 总结前几条消息 → ≤12 字存 Store（namespace ("threads", tid)），仅首次生成
+- 历史消息保留思考过程：/threads/{tid}/messages 返回 reasoning_content，前端映射显示
