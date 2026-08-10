@@ -26,6 +26,10 @@ from app.model import get_model
 # 记忆连接生命周期：app 运行期间保持（阶段 6）
 _memory = {}
 
+# 后台任务引用集合：防止 asyncio.create_task 的任务被垃圾回收
+# （task 无引用会被 GC，导致标题生成"时灵时不灵"——用户实测发现）
+_background_tasks: set[asyncio.Task] = set()
+
 
 async def _generate_thread_title(tid: str) -> None:
     """异步生成会话标题（仅首次）：用 LLM 总结会话内容，存 Store。
@@ -51,12 +55,16 @@ async def _generate_thread_title(tid: str) -> None:
             return
 
         prompt = (
-            "根据以下对话内容，用不超过 12 个字总结一个会话标题。"
-            "只输出标题本身，不要标点、引号或解释：\n"
+            "你是会话标题生成器。根据对话内容生成一个简短标题。\n"
+            "要求：不超过 12 个汉字；提炼核心主题；不要标点、引号、解释；直接输出标题。\n"
+            "示例：\n"
+            "对话：'推荐一门 Python 入门课' → 标题：Python入门课程推荐\n"
+            "对话：'我现在想学习vue搭配python规划学习路线' → 标题：Vue+Python学习路线规划\n"
+            "对话内容：\n"
             + "\n".join(texts)
         )
         resp = await get_model().ainvoke(prompt)
-        title = resp.content.strip().split("\n")[0][:15] or "新会话"
+        title = resp.content.strip().split("\n")[0].strip()[:18] or "新会话"
         await store.aput(ns, "title", title)
     except Exception:
         pass  # 标题生成失败不影响主流程
@@ -166,17 +174,22 @@ async def rename_thread(tid: str, payload: dict):
 
 @app.get("/threads/{tid}/messages")
 async def thread_messages(tid: str):
-    """读取某会话的完整消息历史（checkpointer state）。"""
+    """读取某会话的完整消息历史（checkpointer state）。
+
+    AI 消息附带 thinking（reasoning_content）——用户需求：
+    切换会话后思考过程要保留展示（工具调用列表不需要）。
+    """
     snap = await _memory["agent"].aget_state({"configurable": {"thread_id": tid}})
     msgs = (snap.values.get("messages", []) if snap else []) or []
-    return {
-        "thread_id": tid,
-        "messages": [
-            {"role": m.type, "content": str(m.content)}
-            for m in msgs
-            if m.type in ("human", "ai") and m.content
-        ],
-    }
+    out = []
+    for m in msgs:
+        if not m.content or m.type not in ("human", "ai"):
+            continue
+        item = {"role": m.type, "content": str(m.content)}
+        if m.type == "ai":
+            item["thinking"] = m.additional_kwargs.get("reasoning_content", "")
+        out.append(item)
+    return {"thread_id": tid, "messages": out}
 
 
 @app.post("/chat")
@@ -226,7 +239,10 @@ async def chat_stream(req: ChatRequest):
 
     if req.thread_id:
         # 后台生成会话标题（不阻塞 SSE，仅首次）
-        asyncio.create_task(_generate_thread_title(req.thread_id))
+        # ★ 必须保存 task 引用：无引用的 task 会被 GC，标题生成会"随机失败"
+        task = asyncio.create_task(_generate_thread_title(req.thread_id))
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
 
     return StreamingResponse(event_gen(), media_type="text/event-stream")
 

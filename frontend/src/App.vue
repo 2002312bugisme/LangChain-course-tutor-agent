@@ -42,8 +42,8 @@ async function switchThread(tid) {
       messages.value = data.messages.map((m) => ({
         role: m.role === 'human' ? 'user' : 'assistant',
         content: m.content,
-        thinking: '',
-        tools: [],
+        thinking: m.thinking || '',   // 历史消息保留思考过程（用户需求）
+        tools: [],                     // 工具调用列表不保留
       }))
       scrollBottom()
     }
