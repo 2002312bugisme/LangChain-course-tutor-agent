@@ -185,3 +185,21 @@ chunk 文本 + 元数据（来源文件、章节标题、chunk 序号）
 | DeepSeek 接口限流 | max_retries + 中间件重试（阶段 5 正好演示） |
 | Vue 工程初始化 npm 超时（本机 npm 超时） | 后端先行，前端用 CDN 版 Vue 3 单文件兜底 |
 | SqliteSaver 装包失败 | 先用 InMemorySaver 跑通，再升级 |
+
+---
+
+## 7. 阶段进度（2026-08 更新）
+
+| 阶段 | 内容 | 状态 |
+|---|---|---|
+| 0 | 项目骨架 + 文档体系 | ✅ |
+| 1 | 模型接入（init_chat_model + CLI） | ✅ |
+| 2 | 消息体系（chat/trim/construct） | ✅ |
+| 3 | 工具 + Agent（create_agent + CLI） | ✅ |
+| 4 | Web 端（FastAPI + SSE + Vue3） | ✅ |
+| 5 | 中间件（钩子/jump_to/重试） | ✅ |
+| 6 | 记忆（checkpointer + Store） | ✅ |
+| 6.5 | UI 现代化 + Markdown 渲染 | ✅ |
+| 7 | 结构化输出（计划卡片 + 会话导出） | ✅ |
+| 8 | RAG（BM25 + jieba + search_knowledge） | ✅ |
+| 9 | 高级收尾（LangSmith/模型切换/错误分层/batch） | ✅ |
