@@ -49,6 +49,8 @@ cd frontend && npm run dev
 
 ## CLI 演示（不依赖前端）
 
+> ⚠️ 必须在**项目根目录**运行（`python -m` 按当前目录找 `app` 包）
+
 ```bash
 python -m app.cli invoke "你好"          # 单次调用
 python -m app.cli stream "你好"          # 流式输出
