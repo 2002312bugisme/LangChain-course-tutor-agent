@@ -30,6 +30,7 @@ _memory = {}
 async def lifespan(app: FastAPI):
     """应用生命周期：启动时创建记忆连接 + Agent 单例，关闭时释放。"""
     async with memory_ctx() as (cp, st):
+        _memory["checkpointer"] = cp
         _memory["agent"] = await ensure_agent(cp, st)
         yield
 
@@ -77,6 +78,39 @@ async def health():
         "status": "ok",
         "model": model.model_name,
         "provider": "deepseek",
+    }
+
+
+@app.get("/threads")
+async def list_threads():
+    """会话列表：从 checkpointer 枚举所有 thread_id（每会话取最新 step）。"""
+    cp = _memory["checkpointer"]
+    threads: dict[str, dict] = {}
+    async for item in cp.alist(None):
+        cfg = item.config or {}
+        tid = cfg.get("configurable", {}).get("thread_id")
+        if not tid:
+            continue
+        step = (item.metadata or {}).get("step", 0)
+        # 同一会话只保留最新 checkpoint
+        if tid not in threads or step > threads[tid]["step"]:
+            threads[tid] = {"thread_id": tid, "step": step}
+    # 最新会话在前
+    return sorted(threads.values(), key=lambda x: -x["step"])
+
+
+@app.get("/threads/{tid}/messages")
+async def thread_messages(tid: str):
+    """读取某会话的完整消息历史（checkpointer state）。"""
+    snap = await _memory["agent"].aget_state({"configurable": {"thread_id": tid}})
+    msgs = (snap.values.get("messages", []) if snap else []) or []
+    return {
+        "thread_id": tid,
+        "messages": [
+            {"role": m.type, "content": str(m.content)}
+            for m in msgs
+            if m.type in ("human", "ai") and m.content
+        ],
     }
 
 

@@ -105,3 +105,29 @@ async def memory_ctx():
 | 8.3 checkpointer vs Store 对比 | 验证结果 4.2/4.3 |
 | 3.5 InjectedStore 注入 | 工具形参（异步版） |
 | 9.3 config.configurable.thread_id | _thread_config |
+
+## 8.5 迭代：侧边栏会话列表（用户需求，2026-08）
+
+**问题**：刷新浏览器后，checkpointer 记住了对话（模型知道历史），但**前端消息列表是空的**——用户看不到之前聊过什么，体验差。
+
+**方案**：会话侧边栏 + 历史加载
+- 后端两个新接口：
+  - `GET /threads`：从 checkpointer `alist(None)` 枚举全部会话（每会话取 step 最大者），按 step 降序
+  - `GET /threads/{tid}/messages`：`agent.aget_state()` 读该会话消息历史
+- 前端：左侧边栏（240px）= 顶部"＋新建会话"按钮 + 会话列表；点击会话 → 切换 thread_id + 加载历史渲染；当前会话高亮；发送后刷新列表
+- localStorage 保存 thread_id：刷新页面后自动恢复上次会话及其历史
+
+**顺带修复**：
+- CLI `agent` 命令 ImportError（阶段 6 重构后 `get_agent` 残留导入）→ 已清理
+- CLI 带 checkpointer 后报 "Checkpointer requires configurable.thread_id" → 固定 `thread_id="cli-session"`（跨次运行可续聊）
+
+**关键 API（alist）**：`checkpointer.alist(None)` 枚举所有 checkpoint（config=None 跳过过滤，否则强制 thread_id 条件）；每个 checkpoint 的 `item.config["configurable"]["thread_id"]` 是会话 id，`item.metadata["step"]` 是步数（取最新）。
+
+## 9. 测试用例表（6.5 追加）
+
+| 编号 | 操作 | 预期 |
+|---|---|---|
+| TC-30 | 浏览器发"我叫小美，正在学 Vue"，**刷新页面** | 自动恢复上次会话，历史消息可见 |
+| TC-31 | 侧边栏点击其他会话 | 切换 thread_id，加载该会话历史 |
+| TC-32 | 点"＋新建会话"再提问 | 新会话，回复"第一次对话"；侧边栏出现新会话 |
+| TC-33 | CLI `python -m app.cli agent "你好"` | 正常（ImportError 已修） |

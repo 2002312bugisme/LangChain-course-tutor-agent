@@ -20,7 +20,6 @@ from app.messages import (
     trim_history,
 )
 from app.model import get_model
-from app.agent import get_agent
 
 
 def demo_invoke(prompt: str) -> None:
@@ -126,7 +125,11 @@ def demo_agent(prompt: str) -> None:
         from app.agent import ensure_agent
         async with memory_ctx() as (cp, st):
             agent = await ensure_agent(cp, st)
-            return await agent.ainvoke({"messages": [HumanMessage(content=prompt)]})
+            # 固定 thread_id：checkpointer 要求 configurable.thread_id，
+            # 且固定 id 让 CLI 跨次运行也能续聊（SQLite 持久化）
+            cfg = {"configurable": {"thread_id": "cli-session"}}
+            return await agent.ainvoke(
+                {"messages": [HumanMessage(content=prompt)]}, cfg)
 
     print("=" * 50)
     print(f"[agent] 输入: {prompt!r}")
@@ -168,8 +171,10 @@ def demo_agent_stream(prompt: str) -> None:
         from app.agent import ensure_agent
         async with memory_ctx() as (cp, st):
             agent = await ensure_agent(cp, st)
+            cfg = {"configurable": {"thread_id": "cli-session"}}
             async for chunk, metadata in agent.astream(
                 {"messages": [HumanMessage(content=prompt)]},
+                cfg,
                 stream_mode="messages",
             ):
                 reasoning = chunk.additional_kwargs.get("reasoning_content")
