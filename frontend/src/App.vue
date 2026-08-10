@@ -13,6 +13,9 @@ const activeThread = ref('')
 const editingId = ref(null)
 const editingTitle = ref('')
 const THREAD_KEY = 'kezhan_thread_id'
+const MODEL_KEY = 'kezhan_model'
+const models = ref([])          // 可用模型列表（阶段 9）
+const currentModel = ref(localStorage.getItem(MODEL_KEY) || '')
 
 // Markdown 渲染（AI 回复是 markdown）
 marked.setOptions({ breaks: true, gfm: true })
@@ -42,6 +45,23 @@ function scrollBottom() {
 // 思考区折叠（默认展开最新一条，历史折叠）
 function toggleThinking(m) {
   m.collapsed = !m.collapsed
+}
+
+async function loadModels() {
+  try {
+    const resp = await fetch('/models')
+    if (resp.ok) {
+      const data = await resp.json()
+      models.value = data.options
+      if (!currentModel.value || !data.options.includes(currentModel.value)) {
+        currentModel.value = data.current
+      }
+    }
+  } catch (e) { /* ignore */ }
+}
+
+function switchModel() {
+  localStorage.setItem(MODEL_KEY, currentModel.value)
 }
 
 async function loadThreads() {
@@ -167,7 +187,7 @@ async function generatePlan(q) {
     const resp = await fetch('/plan', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: topic, thread_id: activeThread.value }),
+      body: JSON.stringify({ message: topic, thread_id: activeThread.value, model: currentModel.value || undefined }),
       signal: ctrl.signal,
     })
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
@@ -206,7 +226,7 @@ async function send() {
     const resp = await fetch('/chat/stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text, thread_id: activeThread.value }),
+      body: JSON.stringify({ message: text, thread_id: activeThread.value, model: currentModel.value || undefined }),
     })
     if (!resp.ok || !resp.body) throw new Error(`HTTP ${resp.status}`)
 
@@ -253,6 +273,7 @@ async function send() {
 }
 
 onMounted(async () => {
+  await loadModels()
   await loadThreads()
   const saved = localStorage.getItem(THREAD_KEY)
   if (saved && threads.value.some((t) => t.thread_id === saved)) {
@@ -305,6 +326,9 @@ onMounted(async () => {
       <header>
         <h1>🎓 课栈 · 编程学习助手</h1>
         <span class="hint">会话记忆 · 思考过程实时展示</span>
+        <select v-if="models.length" class="model-select" v-model="currentModel" @change="switchModel" :disabled="loading">
+          <option v-for="m in models" :key="m" :value="m">{{ m.replace('deepseek-v4-', '') }}</option>
+        </select>
         <button class="export-btn" :disabled="loading || !activeThread" @click="exportChat">📥 导出对话</button>
       </header>
 
@@ -467,6 +491,10 @@ header h1 { font-size: 18px; color: #111827; }
 .export-btn { margin-left: auto; padding: 7px 14px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; color: #4f46e5; cursor: pointer; transition: all .2s; }
 .export-btn:hover:not(:disabled) { border-color: #6366f1; background: #f5f3ff; }
 .export-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* 模型切换下拉（阶段 9） */
+.model-select { padding: 6px 10px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; color: #4f46e5; background: #fff; cursor: pointer; outline: none; }
+.model-select:disabled { opacity: .5; cursor: not-allowed; }
 
 /* 学习计划卡片 */
 .plan-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 18px 20px; box-shadow: 0 2px 10px rgba(0,0,0,.05); margin-bottom: 10px; }

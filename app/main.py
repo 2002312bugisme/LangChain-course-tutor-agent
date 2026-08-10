@@ -25,7 +25,7 @@ from uuid import uuid4
 from app.agent import ensure_agent
 from app.config import settings
 from app.memory import memory_ctx
-from app.model import get_model
+from app.model import MODEL_OPTIONS, get_model
 from app.schemas import LearningPlan
 
 # 记忆连接生命周期：app 运行期间保持（阶段 6）
@@ -96,20 +96,63 @@ app.add_middleware(
 )
 
 
+# ========== 错误分层处理（阶段 9）==========
+# SDK 异常体系：BadRequestError(400 参数错) / RateLimitError(429 限流) /
+# APITimeoutError(超时) / APIConnectionError(网络) → 统一 JSON 错误结构
+from fastapi.responses import JSONResponse
+from openai import APIConnectionError, APITimeoutError, BadRequestError, RateLimitError
+
+
+@app.exception_handler(BadRequestError)
+async def _bad_request(request, exc):
+    return JSONResponse(status_code=400, content={"code": "bad_request", "message": str(exc)[:300]})
+
+
+@app.exception_handler(RateLimitError)
+async def _rate_limit(request, exc):
+    return JSONResponse(status_code=429, content={"code": "rate_limit", "message": "请求过于频繁，请稍后重试（限流）"})
+
+
+@app.exception_handler(APITimeoutError)
+async def _timeout(request, exc):
+    return JSONResponse(status_code=504, content={"code": "timeout", "message": "模型响应超时"})
+
+
+@app.exception_handler(APIConnectionError)
+async def _connection(request, exc):
+    return JSONResponse(status_code=502, content={"code": "connection", "message": "无法连接模型服务"})
+
+
+@app.exception_handler(Exception)
+async def _generic(request, exc):
+    return JSONResponse(status_code=500, content={"code": "internal", "message": f"服务器内部错误：{str(exc)[:300]}"})
+
+
 class ChatRequest(BaseModel):
     message: str
     thread_id: str | None = None  # 阶段 6：会话 ID（checkpointer 记忆键）
+    model: str | None = None     # 阶段 9：模型切换（ConfigurableModel）
 
 
-def _thread_config(thread_id: str | None) -> dict:
-    """构造运行 config：带 thread_id 则启用会话记忆。
+class BatchRequest(BaseModel):
+    """批量请求（阶段 9：batch 知识点演示）。"""
 
-    config 里 configurable.thread_id 是 checkpointer 的检索键：
-    同一 thread_id 自动恢复历史（续聊），不同 thread_id 互相隔离。
+    messages: list[str]
+    model: str | None = None
+
+
+def _thread_config(thread_id: str | None, model: str | None = None) -> dict:
+    """构造运行 config：thread_id 启用会话记忆，model 切换模型。
+
+    config 里 configurable.thread_id 是 checkpointer 的检索键；
+    configurable.chat_model_model 是 ConfigurableModel 的切换键（阶段 9）。
+    ⚠️ 必须总是含 thread_id：agent 挂了 checkpointer，abatch/ainvoke 都会
+    校验 configurable 键（缺省不合并默认值）——无会话时用 "default"。
     """
-    if not thread_id:
-        return {}
-    return {"configurable": {"thread_id": thread_id}}
+    cfg = {"configurable": {"thread_id": thread_id or "default"}}
+    if model:
+        cfg["configurable"]["chat_model_model"] = model
+    return cfg
 
 
 def _tool_summary(messages: list) -> list[dict]:
@@ -129,6 +172,12 @@ async def health():
         "model": model.model_name,
         "provider": "deepseek",
     }
+
+
+@app.get("/models")
+async def list_models():
+    """可用模型列表（阶段 9：模型切换）。"""
+    return {"options": MODEL_OPTIONS, "current": settings.deepseek_model}
 
 
 @app.get("/threads")
@@ -294,12 +343,28 @@ async def export_thread(tid: str):
     return {"title": title, "markdown": "\n".join(lines)}
 
 
+@app.post("/batch")
+async def batch_chat(req: BatchRequest):
+    """批量处理多个输入（阶段 9：batch 知识点演示）。
+
+    agent.abatch([...])：并发执行多个请求（LLM 并行调用），
+    对比逐个 ainvoke 串行，总耗时 ≈ 单个请求耗时而非 N 倍。
+    注意：batch 是无状态批量（不接 thread_id，不写会话历史）。
+    """
+    config = _thread_config(None, req.model)
+    results = await _memory["agent"].abatch(
+        [{"messages": [("user", m)]} for m in req.messages],
+        config=[config] * len(req.messages) if config else config,
+    )
+    return {"results": [r["messages"][-1].content for r in results]}
+
+
 @app.post("/chat")
 async def chat(req: ChatRequest):
     """完整版（非流式）：等待 Agent 全部执行完，返回思考+回复+工具链。"""
     result = await _memory["agent"].ainvoke(
         {"messages": [("user", req.message)]},
-        _thread_config(req.thread_id),
+        _thread_config(req.thread_id, req.model),
     )
 
     # 最后一条 AI 消息 = 最终回复（含思考过程）
@@ -318,30 +383,33 @@ async def chat_stream(req: ChatRequest):
 
     async def event_gen():
         # 混合流模式：messages 拿 token 级 chunk，updates 拿节点级更新
-        async for mode, data in _memory["agent"].astream(
-            {"messages": [("user", req.message)]},
-            _thread_config(req.thread_id),
-            stream_mode=["messages", "updates"],
-        ):
-            if mode == "messages":
-                chunk, metadata = data
-                # ⚠️ 只发模型节点产生的 chunk：tools 节点流出的 ToolMessage
-                # 也会进 messages 模式（metadata.langgraph_node == "tools"），
-                # 不过滤会把工具执行结果混入 AI 回复文本
-                if metadata.get("langgraph_node") != "model":
-                    continue
-                reasoning = chunk.additional_kwargs.get("reasoning_content")
-                if reasoning:
-                    yield _sse("reasoning", {"content": reasoning})
-                if chunk.content:
-                    yield _sse("token", {"content": chunk.content})
-            elif mode == "updates":
-                for node, update in data.items():
-                    if node == "tools" and update:
-                        # 工具执行结果到达 → 通知前端展示
-                        for msg in update.get("messages", []):
-                            if msg.type == "tool":
-                                yield _sse("tool", {"name": msg.name, "result": str(msg.content)[:60]})
+        try:
+            async for mode, data in _memory["agent"].astream(
+                {"messages": [("user", req.message)]},
+                _thread_config(req.thread_id, req.model),
+                stream_mode=["messages", "updates"],
+            ):
+                if mode == "messages":
+                    chunk, metadata = data
+                    # ⚠️ 只发模型节点产生的 chunk：tools 节点流出的 ToolMessage
+                    # 也会进 messages 模式（metadata.langgraph_node == "tools"），
+                    # 不过滤会把工具执行结果混入 AI 回复文本
+                    if metadata.get("langgraph_node") != "model":
+                        continue
+                    reasoning = chunk.additional_kwargs.get("reasoning_content")
+                    if reasoning:
+                        yield _sse("reasoning", {"content": reasoning})
+                    if chunk.content:
+                        yield _sse("token", {"content": chunk.content})
+                elif mode == "updates":
+                    for node, update in data.items():
+                        if node == "tools" and update:
+                            # 工具执行结果到达 → 通知前端展示
+                            for msg in update.get("messages", []):
+                                if msg.type == "tool":
+                                    yield _sse("tool", {"name": msg.name, "result": str(msg.content)[:60]})
+        except Exception as e:  # 阶段 9：流式错误兜底，不中断连接
+            yield _sse("error", {"message": str(e)[:200]})
         yield _sse("done", {"message": "完成"})
 
     if req.thread_id:

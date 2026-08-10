@@ -197,6 +197,44 @@ def demo_agent_stream(prompt: str) -> None:
     print("\n\n[agent-stream] ✅ 完成")
 
 
+def demo_batch(questions: list[str]) -> None:
+    """阶段 9：batch 批量处理演示（abatch 并发）。
+
+    用法：python -m app.cli batch "问题1" "问题2" "问题3"
+    知识点：abatch 并发调用 vs 串行 ainvoke——总耗时 ≈ 单个请求耗时。
+    """
+    import asyncio
+    import time
+
+    print("=" * 50)
+    print(f"[batch] 输入 {len(questions)} 个问题: {questions}")
+    print("=" * 50)
+
+    async def _run():
+        from app.agent import ensure_agent
+        from app.memory import memory_ctx
+
+        async with memory_ctx() as (cp, st):
+            agent = await ensure_agent(cp, st)
+            t0 = time.time()
+            # 挂 checkpointer 的 agent，abatch 必须显式传 thread_id（每个请求独立）
+            results = await agent.abatch(
+                [{"messages": [("user", q)]} for q in questions],
+                config=[
+                    {"configurable": {"thread_id": f"batch-{i}"}}
+                    for i in range(len(questions))
+                ],
+            )
+            dt = time.time() - t0
+            print(f"\n⏱ 总耗时: {dt:.1f}s（{len(questions)} 个请求并发）")
+            for i, (q, r) in enumerate(zip(questions, results)):
+                reply = r["messages"][-1].content
+                print(f"\n[{i + 1}] {q}\n    → {str(reply)[:120]}")
+
+    asyncio.run(_run())
+    print("\n[batch] ✅ 完成")
+
+
 def main() -> None:
     cmd = sys.argv[1] if len(sys.argv) > 1 else "invoke"
     prompt = sys.argv[2] if len(sys.argv) > 2 else "你好，用一句话介绍你自己"
@@ -212,6 +250,9 @@ def main() -> None:
         demo_agent(prompt)
     elif cmd == "agent-stream":
         demo_agent_stream(prompt)
+    elif cmd == "batch":
+        questions = sys.argv[2:]
+        demo_batch(questions or ["推荐一门 Python 入门课", "你好，介绍一下你自己", "1+1=?"])
     else:
         demo_invoke(prompt)
 
