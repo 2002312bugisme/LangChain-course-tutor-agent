@@ -121,3 +121,29 @@ python -m app.cli agent-stream "有没有 Vue 进阶课程？"
 | 4.3 运行方法 stream + stream_mode | agent-stream（messages 模式） |
 | 9.2 stream_mode 细分 | messages 模式 + metadata.langgraph_node |
 | 需求⑦ | 思考/回复分段流式（CLI 版验证，阶段 4 Web 化） |
+
+## 7.5 人工测试记录（2026-08 用户实测，全部通过 ✅）
+
+- **TC-09** agent：完整推理链 search_courses + record_search_log → get_course_detail；回复含课程编号 ✅
+- **TC-10** agent-stream：🤔 思考先出 → 💬 回复后出，回复含 Vue 3 前端开发实战 ✅
+- **TC-11** agent："推荐一门后端课程" → 自动调 search_courses 返回 web-101 ✅
+- **TC-12** agent："1+1等于几" → 不调工具直接回答 ✅
+
+> **用户反馈问题：思考过程语言不稳定（中英混杂）→ 已修复（见 8.2）**
+
+## 8.2 思考语言不稳定问题修复（用户反馈驱动）
+
+**现象**：用户测试发现 `reasoning_content`（思考过程）有时中文、有时英文——system_prompt 原有"用中文回答"只约束正式回复（content），**约束不了思考过程**。
+
+**原因**：推理模型的思考语言由模型内部习惯决定（DeepSeek 官方无"思考语言"API 参数），提示词是唯一软控制手段。
+
+**修复**：system_prompt 增加显式思考语言规定：
+```
+## 思考语言规定（重要）
+- 你的整个思考过程（reasoning）必须使用中文，与用户输入语言保持一致
+```
+同步更新：`app/agent.py`（AGENT_SYSTEM_PROMPT）+ `app/messages.py`（SYSTEM_PROMPT）
+
+**验证**：agent-stream 连续 3 次 + chat 两轮 + 其他查询词，思考过程全部中文 ✅
+
+**诚实说明**：提示词约束是概率性手段，非 100% 保证（长期稳定性需监控）；如需更强约束，阶段 5 可在 wrap_model_call 中间件中动态注入思考语言指令（需求登记）。

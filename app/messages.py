@@ -16,7 +16,10 @@ from langchain_core.messages.base import BaseMessage
 from app.model import get_model
 
 # 全局系统提示（阶段 6 会升级为动态 prompt）
-SYSTEM_PROMPT = "你是编程学习助手，回答简洁专业，用中文回答。"
+SYSTEM_PROMPT = """你是编程学习助手，回答简洁专业，用中文回答。
+
+## 思考语言规定（重要）
+- 你的整个思考过程（reasoning）必须使用中文，与用户输入语言保持一致"""
 
 
 def demo_quick_construct() -> None:
