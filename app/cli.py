@@ -114,11 +114,24 @@ def demo_trim() -> None:
 
 
 def demo_agent(prompt: str) -> None:
-    """Agent invoke 版：打印完整执行链（工具调用过程）。"""
+    """Agent invoke 版：打印完整执行链（工具调用过程）。
+
+    阶段 6 起 Agent 需要 checkpointer/store（async with 内创建），
+    所以 CLI 也用 asyncio.run + memory_ctx 包装。
+    """
+    import asyncio
+
+    async def _run():
+        from app.memory import memory_ctx
+        from app.agent import ensure_agent
+        async with memory_ctx() as (cp, st):
+            agent = await ensure_agent(cp, st)
+            return await agent.ainvoke({"messages": [HumanMessage(content=prompt)]})
+
     print("=" * 50)
     print(f"[agent] 输入: {prompt!r}")
     print("=" * 50)
-    result = get_agent().invoke({"messages": [HumanMessage(content=prompt)]})
+    result = asyncio.run(_run())
 
     print("\n[agent] 执行过程：")
     for m in result["messages"]:
@@ -142,30 +155,40 @@ def demo_agent_stream(prompt: str) -> None:
     - chunk.additional_kwargs["reasoning_content"] 有值 → 思考阶段
     - chunk.content 有值 → 回复阶段
     """
+    import asyncio
+
     print("=" * 50)
     print(f"[agent-stream] 输入: {prompt!r}")
     print("=" * 50)
     phase = None  # None / "thinking" / "answer"
-    for chunk, metadata in get_agent().stream(
-        {"messages": [HumanMessage(content=prompt)]},
-        stream_mode="messages",
-    ):
-        node = metadata.get("langgraph_node", "?")
-        reasoning = chunk.additional_kwargs.get("reasoning_content")
-        text = chunk.content or ""
 
-        # 阶段切换：思考 → 回复
-        if phase is None and reasoning:
-            phase = "thinking"
-            print("\n🤔 思考: ", end="", flush=True)
-        elif phase == "thinking" and text and not reasoning:
-            phase = "answer"
-            print("\n\n💬 回复: ", end="", flush=True)
+    async def _run():
+        nonlocal phase
+        from app.memory import memory_ctx
+        from app.agent import ensure_agent
+        async with memory_ctx() as (cp, st):
+            agent = await ensure_agent(cp, st)
+            async for chunk, metadata in agent.astream(
+                {"messages": [HumanMessage(content=prompt)]},
+                stream_mode="messages",
+            ):
+                reasoning = chunk.additional_kwargs.get("reasoning_content")
+                text = chunk.content or ""
 
-        if reasoning:
-            print(reasoning, end="", flush=True)
-        if text:
-            print(text, end="", flush=True)
+                # 阶段切换：思考 → 回复
+                if phase is None and reasoning:
+                    phase = "thinking"
+                    print("\n🤔 思考: ", end="", flush=True)
+                elif phase == "thinking" and text and not reasoning:
+                    phase = "answer"
+                    print("\n\n💬 回复: ", end="", flush=True)
+
+                if reasoning:
+                    print(reasoning, end="", flush=True)
+                if text:
+                    print(text, end="", flush=True)
+
+    asyncio.run(_run())
     print("\n\n[agent-stream] ✅ 完成")
 
 

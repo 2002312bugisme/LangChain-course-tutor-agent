@@ -4217,3 +4217,14 @@ Web 端（astream/ainvoke）流式卡死，后端报：
 ## 教训
 - 中间件改动必须**双端验证**（CLI 同步 + Web 异步），单端通过不算数
 - 报错信息里的 NotImplementedError 提示了三种解法：子类化 / async 函数 / 同步调用
+
+# 实战笔记：记忆层 async 四连坑（阶段 6，2026-08）
+
+1. 同步 SqliteSaver 不支持异步方法（aget_tuple → NotImplementedError）→ 用 AsyncSqliteSaver
+2. 直接 aiosqlite.connect() 构造有 loop 生命周期问题（Event loop is closed）→ from_conn_string + async with
+3. AsyncSqliteStore 的同步方法 put/get 在主事件循环禁用（InvalidStateError）→ 工具必须 async def + await aput/aget
+4. BaseStore 双体系：langchain_core.stores.BaseStore ≠ langgraph.store.base.BaseStore，
+   AsyncSqliteStore 继承的是 langgraph 的，类型标注用错 → Pydantic 校验失败
+
+规律：langgraph 持久化组件（checkpointer/store）都是同步/异步双实现，
+Web 异步场景必须 Async 类 + async 方法 + async 上下文管理（memory_ctx 模式）。

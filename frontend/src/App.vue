@@ -9,6 +9,16 @@ const input = ref('')
 const loading = ref(false)
 const chatBox = ref(null)
 
+// 阶段 6：thread_id 会话管理（localStorage 持久化，刷新页面续聊）
+const THREAD_KEY = 'kezhan_thread_id'
+const threadId = ref(localStorage.getItem(THREAD_KEY) || crypto.randomUUID())
+
+function newSession() {
+  threadId.value = crypto.randomUUID()
+  localStorage.setItem(THREAD_KEY, threadId.value)
+  messages.value = []
+}
+
 function scrollBottom() {
   setTimeout(() => {
     if (chatBox.value) chatBox.value.scrollTop = chatBox.value.scrollHeight
@@ -34,7 +44,7 @@ async function send() {
     const resp = await fetch('/chat/stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text }),
+      body: JSON.stringify({ message: text, thread_id: threadId.value }),
     })
     if (!resp.ok || !resp.body) throw new Error(`HTTP ${resp.status}`)
 
@@ -73,7 +83,8 @@ async function send() {
   <div class="app">
     <header>
       <h1>🎓 课栈 · 编程学习助手</h1>
-      <span class="hint">DeepSeek 推理模型 · 思考过程实时展示</span>
+      <span class="hint">DeepSeek 推理模型 · 思考过程实时展示 · 会话记忆</span>
+      <button class="new-session" @click="newSession" :disabled="loading">＋ 新建会话</button>
     </header>
 
     <main ref="chatBox" class="chat">
@@ -124,6 +135,9 @@ body { font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; background: #f0f2
 header { padding: 16px 20px; background: #fff; border-bottom: 1px solid #e5e7eb; display: flex; align-items: baseline; gap: 12px; }
 header h1 { font-size: 20px; color: #1f2937; }
 .hint { font-size: 12px; color: #9ca3af; }
+.new-session { margin-left: auto; padding: 6px 14px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; color: #2563eb; font-size: 13px; cursor: pointer; }
+.new-session:hover { background: #eff6ff; }
+.new-session:disabled { opacity: .5; cursor: not-allowed; }
 .chat { flex: 1; overflow-y: auto; padding: 20px; }
 .empty { text-align: center; color: #9ca3af; margin-top: 80px; line-height: 2; }
 .row { display: flex; margin-bottom: 16px; }

@@ -11,16 +11,30 @@ SSE 事件设计（对应需求⑦，预研结论落地）：
 - updates 模式下的工具执行 → tool 事件
 """
 import json
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from app.agent import get_agent
+from app.agent import ensure_agent
+from app.memory import memory_ctx
 from app.model import get_model
 
-app = FastAPI(title="课栈 - 编程学习助手", version="0.4.0")
+# 记忆连接生命周期：app 运行期间保持（阶段 6）
+_memory = {}
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用生命周期：启动时创建记忆连接 + Agent 单例，关闭时释放。"""
+    async with memory_ctx() as (cp, st):
+        _memory["agent"] = await ensure_agent(cp, st)
+        yield
+
+
+app = FastAPI(title="课栈 - 编程学习助手", version="0.6.0", lifespan=lifespan)
 
 # CORS：开发阶段允许 Vite 前端跨域（阶段 4 起前端在 5173 端口）
 app.add_middleware(
@@ -33,7 +47,18 @@ app.add_middleware(
 
 class ChatRequest(BaseModel):
     message: str
-    thread_id: str | None = None  # 阶段 6 引入 checkpointer 后启用
+    thread_id: str | None = None  # 阶段 6：会话 ID（checkpointer 记忆键）
+
+
+def _thread_config(thread_id: str | None) -> dict:
+    """构造运行 config：带 thread_id 则启用会话记忆。
+
+    config 里 configurable.thread_id 是 checkpointer 的检索键：
+    同一 thread_id 自动恢复历史（续聊），不同 thread_id 互相隔离。
+    """
+    if not thread_id:
+        return {}
+    return {"configurable": {"thread_id": thread_id}}
 
 
 def _tool_summary(messages: list) -> list[dict]:
@@ -58,7 +83,10 @@ async def health():
 @app.post("/chat")
 async def chat(req: ChatRequest):
     """完整版（非流式）：等待 Agent 全部执行完，返回思考+回复+工具链。"""
-    result = await get_agent().ainvoke({"messages": [("user", req.message)]})
+    result = await _memory["agent"].ainvoke(
+        {"messages": [("user", req.message)]},
+        _thread_config(req.thread_id),
+    )
 
     # 最后一条 AI 消息 = 最终回复（含思考过程）
     last_ai = next(m for m in reversed(result["messages"]) if m.type == "ai")
@@ -76,8 +104,9 @@ async def chat_stream(req: ChatRequest):
 
     async def event_gen():
         # 混合流模式：messages 拿 token 级 chunk，updates 拿节点级更新
-        async for mode, data in get_agent().astream(
+        async for mode, data in _memory["agent"].astream(
             {"messages": [("user", req.message)]},
+            _thread_config(req.thread_id),
             stream_mode=["messages", "updates"],
         ):
             if mode == "messages":
