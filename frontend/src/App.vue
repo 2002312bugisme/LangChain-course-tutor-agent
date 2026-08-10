@@ -131,8 +131,9 @@ onMounted(async () => {
           class="thread-item"
           :class="{ active: t.thread_id === activeThread }"
           @click="switchThread(t.thread_id)"
+          :title="t.thread_id"
         >
-          <div class="thread-title">会话 {{ t.thread_id.slice(0, 8) }}</div>
+          <div class="thread-title">{{ t.title }}</div>
           <div class="thread-step">{{ t.step }} 步</div>
         </div>
         <div v-if="threads.length === 0" class="thread-empty">暂无历史会话</div>

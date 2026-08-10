@@ -10,6 +10,7 @@ SSE 事件设计（对应需求⑦，预研结论落地）：
 - chunk.content 有值 → token 事件
 - updates 模式下的工具执行 → tool 事件
 """
+import asyncio
 import json
 from contextlib import asynccontextmanager
 
@@ -26,11 +27,47 @@ from app.model import get_model
 _memory = {}
 
 
+async def _generate_thread_title(tid: str) -> None:
+    """异步生成会话标题（仅首次）：用 LLM 总结会话内容，存 Store。
+
+    namespace=("threads", tid) + key="title"——与会话数据隔离。
+    由调用方 create_task 后台执行，不阻塞 SSE 响应。
+    """
+    try:
+        store = _memory["store"]
+        ns = ("threads", tid)
+        if await store.aget(ns, "title"):
+            return  # 已有标题，跳过（避免重复调用 LLM 浪费成本）
+
+        # 读会话前几条消息作为总结素材
+        snap = await _memory["agent"].aget_state({"configurable": {"thread_id": tid}})
+        msgs = (snap.values.get("messages", []) if snap else []) or []
+        texts = [
+            str(m.content)[:80]
+            for m in msgs
+            if m.type in ("human", "ai") and m.content
+        ][:6]
+        if not texts:
+            return
+
+        prompt = (
+            "根据以下对话内容，用不超过 12 个字总结一个会话标题。"
+            "只输出标题本身，不要标点、引号或解释：\n"
+            + "\n".join(texts)
+        )
+        resp = await get_model().ainvoke(prompt)
+        title = resp.content.strip().split("\n")[0][:15] or "新会话"
+        await store.aput(ns, "title", title)
+    except Exception:
+        pass  # 标题生成失败不影响主流程
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期：启动时创建记忆连接 + Agent 单例，关闭时释放。"""
     async with memory_ctx() as (cp, st):
         _memory["checkpointer"] = cp
+        _memory["store"] = st
         _memory["agent"] = await ensure_agent(cp, st)
         yield
 
@@ -83,8 +120,9 @@ async def health():
 
 @app.get("/threads")
 async def list_threads():
-    """会话列表：从 checkpointer 枚举所有 thread_id（每会话取最新 step）。"""
+    """会话列表：枚举 thread_id + 从 Store 合并 LLM 生成的标题。"""
     cp = _memory["checkpointer"]
+    store = _memory["store"]
     threads: dict[str, dict] = {}
     async for item in cp.alist(None):
         cfg = item.config or {}
@@ -92,11 +130,14 @@ async def list_threads():
         if not tid:
             continue
         step = (item.metadata or {}).get("step", 0)
-        # 同一会话只保留最新 checkpoint
         if tid not in threads or step > threads[tid]["step"]:
             threads[tid] = {"thread_id": tid, "step": step}
-    # 最新会话在前
-    return sorted(threads.values(), key=lambda x: -x["step"])
+    # 最新会话在前 + 合并标题
+    result = sorted(threads.values(), key=lambda x: -x["step"])
+    for t in result:
+        item = await store.aget(("threads", t["thread_id"]), "title")
+        t["title"] = (item.value if item else None) or "新会话"
+    return result
 
 
 @app.get("/threads/{tid}/messages")
@@ -158,6 +199,10 @@ async def chat_stream(req: ChatRequest):
                             if msg.type == "tool":
                                 yield _sse("tool", {"name": msg.name, "result": str(msg.content)[:60]})
         yield _sse("done", {"message": "完成"})
+
+    if req.thread_id:
+        # 后台生成会话标题（不阻塞 SSE，仅首次）
+        asyncio.create_task(_generate_thread_title(req.thread_id))
 
     return StreamingResponse(event_gen(), media_type="text/event-stream")
 
