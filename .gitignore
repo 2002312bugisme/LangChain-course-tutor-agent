@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 敏感配置
+.env
+
+# 本地原始笔记（含真实 key，仅本地使用）
+data/knowledge/
+
+# 工具元数据
+.reasonix/
+
+# 前端
+node_modules/
+frontend/dist/
+
+# 运行时数据
+data/rag_index.json
+*.db
+*.sqlite3
+
+# 编辑器/系统
+.idea/
+.vscode/
+.DS_Store

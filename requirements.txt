@@ -1,0 +1,15 @@
+# 依赖（阶段 0 定稿）
+langchain>=1.3
+langchain-openai>=1.4
+langgraph
+fastapi>=0.141
+uvicorn>=0.52
+python-dotenv
+pydantic-settings>=2.6
+
+# 阶段 6 引入
+# langgraph-checkpoint-sqlite
+
+# 阶段 8 引入
+# jieba
+# rank-bm25
