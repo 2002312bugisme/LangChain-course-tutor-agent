@@ -44,6 +44,18 @@ async function loadThreads() {
   } catch (e) { /* ignore */ }
 }
 
+// 标题是后端异步生成的：生成新会话后短时轮询，等标题出现再刷新侧边栏
+// （最多 8 次 × 1.5s ≈ 12s，只在新会话场景触发，不常驻）
+async function waitTitle(tid, maxTries = 8) {
+  for (let i = 0; i < maxTries; i++) {
+    await new Promise((r) => setTimeout(r, 1500))
+    await loadThreads()
+    const t = threads.value.find((x) => x.thread_id === tid)
+    if (t && t.title && t.title !== '新会话') return true
+  }
+  return false
+}
+
 async function switchThread(tid) {
   if (loading.value) return
   activeThread.value = tid
@@ -166,7 +178,8 @@ async function generatePlan(q) {
     clearTimeout(timer)
     loading.value = false
     scrollBottom()
-    await loadThreads()  // 刷新侧边栏：计划会话出现
+    await loadThreads()        // 刷新侧边栏：计划会话出现
+    await waitTitle(activeThread.value)  // 轮询等标题实时更新（无需手动刷新）
   }
 }
 
@@ -220,6 +233,7 @@ async function send() {
     loading.value = false
     scrollBottom()
     await loadThreads()
+    await waitTitle(activeThread.value)  // 聊天首轮会话的标题同样实时更新
   }
 }
 
