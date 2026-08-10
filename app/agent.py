@@ -10,6 +10,7 @@ from app.middleware import MIDDLEWARES
 from app.model import get_model
 from app.prompts import AGENT_SYSTEM_PROMPT
 from app.tools.course_tools import get_course_detail, record_search_log, search_courses
+from app.tools.knowledge_tools import search_knowledge
 from app.tools.memory_tools import get_progress, save_progress
 
 _agent = None
@@ -30,6 +31,7 @@ async def ensure_agent(checkpointer, store):
                 record_search_log,
                 save_progress,
                 get_progress,
+                search_knowledge,  # 阶段 8：RAG 知识库检索
             ],
             system_prompt=AGENT_SYSTEM_PROMPT,
             middleware=MIDDLEWARES,
